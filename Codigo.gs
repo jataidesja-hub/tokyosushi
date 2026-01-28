@@ -6,7 +6,7 @@ const SPREADSHEET_ID = '1ax-bknAR_532sAoN0pDTkGar5VML_m-TO9GDvc-xCIE';
 
 // ID da pasta do Google Drive onde as imagens serão salvas
 // IMPORTANTE: A pasta DEVE estar com compartilhamento "Qualquer pessoa com o link pode ler"
-const GOOGLE_DRIVE_FOLDER_ID = 'SUA_ID_DA_PASTA_AQUI'; 
+const GOOGLE_DRIVE_FOLDER_ID = '1HUV6HOm14L9qRHF_id3-NtyFxuapOoOs'; 
 
 // Nomes das abas
 const SHEETS = {
