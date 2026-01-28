@@ -1,7 +1,6 @@
 // ===== TOKYO SUSHI - ADMIN JS =====
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbxlT9SG2YyQ4ZphlLkNP4H_osQ1R8m4XEiBDnH8t-M4JGXAw5PqOf-m27wod7CTLub-/exec';
-const IMGBB_API_KEY = '4fd8ad13a8a9b0b08a09db40a8c0f32a'; // API key pública para imagens
 
 let products = [];
 let orders = [];
@@ -57,7 +56,6 @@ async function loadConfig() {
             document.getElementById('configWhatsapp').value = config.whatsapp || '';
             document.getElementById('configPixKey').value = config.pixKey || '';
             document.getElementById('configAddress').value = config.address || '';
-            document.getElementById('configImgbbKey').value = config.imgbbKey || '708687a716c56f2ec57d7714570077cd';
         }
     } catch (e) {
         console.error('Erro ao carregar config:', e);
@@ -207,8 +205,10 @@ function handleImageUpload(event) {
     const reader = new FileReader();
     reader.onload = function (e) {
         const imageData = e.target.result;
-        // Extrair apenas a parte base64
-        pendingImageData = imageData.split(',')[1];
+        pendingImageData = {
+            image: imageData,
+            fileName: file.name
+        };
 
         // Show preview
         const preview = document.getElementById('imagePreview');
@@ -222,23 +222,15 @@ function handleImageUpload(event) {
     reader.readAsDataURL(file);
 }
 
-// Upload to ImgBB
-async function uploadToImgBB(base64Image) {
-    const key = document.getElementById('configImgbbKey').value.trim() || '708687a716c56f2ec57d7714570077cd';
-    const formData = new FormData();
-    formData.append('key', key);
-    formData.append('image', base64Image);
-
+async function uploadToDrive(imageData) {
     try {
-        const response = await fetch('https://api.imgbb.com/1/upload', {
+        const response = await fetch(API_URL, {
             method: 'POST',
-            body: formData
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'uploadImage', data: imageData })
         });
-        const data = await response.json();
-        if (data.success) {
-            return { success: true, url: data.data.url };
-        }
-        return { success: false, error: data.error?.message || 'Erro no upload' };
+        const result = await response.json();
+        return result;
     } catch (e) {
         return { success: false, error: e.toString() };
     }
@@ -250,8 +242,8 @@ async function saveProduct() {
 
     // Se tem imagem pendente para upload
     if (pendingImageData) {
-        showToast('Enviando imagem...', 'info');
-        const uploadResult = await uploadToImgBB(pendingImageData);
+        showToast('Enviando imagem para o Drive...', 'info');
+        const uploadResult = await uploadToDrive(pendingImageData);
         if (uploadResult.success) {
             imageUrl = uploadResult.url;
             showToast('Imagem enviada!', 'success');
@@ -403,8 +395,7 @@ async function saveConfig() {
         storeName: document.getElementById('configStoreName').value.trim(),
         whatsapp: document.getElementById('configWhatsapp').value.trim(),
         pixKey: document.getElementById('configPixKey').value.trim(),
-        address: document.getElementById('configAddress').value.trim(),
-        imgbbKey: document.getElementById('configImgbbKey').value.trim()
+        address: document.getElementById('configAddress').value.trim()
     };
 
     showToast('Salvando...', 'info');

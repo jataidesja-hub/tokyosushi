@@ -4,6 +4,10 @@
 // ID da planilha
 const SPREADSHEET_ID = '1ax-bknAR_532sAoN0pDTkGar5VML_m-TO9GDvc-xCIE';
 
+// ID da pasta do Google Drive onde as imagens serão salvas
+// IMPORTANTE: A pasta DEVE estar com compartilhamento "Qualquer pessoa com o link pode ler"
+const GOOGLE_DRIVE_FOLDER_ID = 'SUA_ID_DA_PASTA_AQUI'; 
+
 // Nomes das abas
 const SHEETS = {
   PRODUCTS: 'Produtos',
@@ -67,6 +71,9 @@ function doPost(e) {
       case 'saveConfig':
         result = saveConfig(data);
         break;
+      case 'uploadImage':
+        result = uploadImageToDrive(data);
+        break;
       default:
         result = { success: false, error: 'Ação inválida' };
     }
@@ -77,6 +84,30 @@ function doPost(e) {
   return ContentService
     .createTextOutput(JSON.stringify(result))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Função para fazer upload para o Google Drive
+function uploadImageToDrive(data) {
+  try {
+    const folder = DriveApp.getFolderById(GOOGLE_DRIVE_FOLDER_ID);
+    
+    // Decodifica a imagem base64
+    const contentType = data.image.match(/data:([^;]+);/)[1];
+    const base64Data = data.image.split(',')[1];
+    const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), contentType, data.fileName || 'produto.jpg');
+    
+    // Cria o arquivo na pasta
+    const file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    
+    // Retorna a URL direta para visualização
+    const fileId = file.getId();
+    const imageUrl = `https://lh3.googleusercontent.com/u/0/d/${fileId}`; // Link direto que funciona em sites
+    
+    return { success: true, url: imageUrl };
+  } catch (error) {
+    return { success: false, error: "Erro no Drive: " + error.toString() };
+  }
 }
 
 // ===== SETUP =====
