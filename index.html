@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Tokyo Sushi - O melhor sushi da cidade. Peça agora!">
+  <title>Tokyo Sushi - Delivery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" type="image/png" href="assets/logo.png">
+</head>
+<body>
+  <div class="loader" id="loader">
+    <div class="loader-spinner"></div>
+    <p class="loader-text">Carregando cardápio...</p>
+  </div>
+  <div class="toast-container" id="toastContainer"></div>
+  <header class="header">
+    <div class="container">
+      <div class="header-content">
+        <div class="logo">
+          <img src="assets/logo.png" alt="Tokyo Sushi">
+          <div class="logo-text"><h1>TO<span>K</span>YO</h1><p>SUSHI</p></div>
+        </div>
+        <div class="categories-filter" id="categoriesFilter">
+          <button class="category-btn active" data-category="all">Todos</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <section class="hero">
+    <div class="container">
+      <h2>Sabores autênticos do Japão</h2>
+      <p>Ingredientes frescos para uma experiência gastronômica única</p>
+    </div>
+  </section>
+  <main class="container">
+    <div class="products-grid" id="productsGrid"></div>
+    <div class="empty-state" id="emptyProducts" style="display:none;">
+      <div class="empty-state-icon">🍣</div>
+      <h3>Nenhum produto encontrado</h3>
+      <p>Aguarde, estamos atualizando...</p>
+    </div>
+  </main>
+  <button class="cart-btn" id="cartBtn" onclick="toggleCart()">
+    <svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+    <span class="cart-count" id="cartCount">0</span>
+  </button>
+  <div class="modal-overlay" id="cartOverlay" onclick="toggleCart()"></div>
+  <aside class="cart-sidebar" id="cartSidebar">
+    <div class="cart-header"><h2>🛒 Seu Pedido</h2><button class="modal-close" onclick="toggleCart()">&times;</button></div>
+    <div class="cart-items" id="cartItems">
+      <div class="empty-state"><div class="empty-state-icon">🍱</div><h3>Carrinho vazio</h3><p>Adicione itens</p></div>
+    </div>
+    <div class="cart-footer">
+      <div class="cart-total"><span>Total:</span><span class="cart-total-value" id="cartTotal">R$ 0,00</span></div>
+      <button class="btn btn-primary btn-lg" style="width:100%;" onclick="openCheckout()" id="checkoutBtn" disabled>Finalizar Pedido</button>
+    </div>
+  </aside>
+  <div class="modal-overlay" id="checkoutModal">
+    <div class="modal" style="max-width:700px;">
+      <div class="modal-header"><h2>📋 Finalizar Pedido</h2><button class="modal-close" onclick="closeCheckout()">&times;</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-control" id="customerName" placeholder="Seu nome" required></div>
+        <div class="grid-2">
+          <div class="form-group"><label class="form-label">WhatsApp *</label><input type="tel" class="form-control" id="customerPhone" placeholder="(00) 00000-0000" required></div>
+          <div class="form-group"><label class="form-label">CEP</label><input type="text" class="form-control" id="customerCep" placeholder="00000-000"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Endereço *</label><input type="text" class="form-control" id="customerAddress" placeholder="Rua, número, bairro" required></div>
+        <div class="form-group"><label class="form-label">Complemento</label><input type="text" class="form-control" id="customerComplement" placeholder="Apto, bloco..."></div>
+        <div class="form-group"><label class="form-label">Observações</label><textarea class="form-control" id="orderNotes" placeholder="Sem cebola..." rows="2"></textarea></div>
+        <h4 style="margin:25px 0 15px;">💳 Pagamento</h4>
+        <div class="payment-options">
+          <label class="payment-option" data-payment="pix"><input type="radio" name="payment" value="pix"><div class="payment-option-icon">📱</div><div class="payment-option-name">PIX</div></label>
+          <label class="payment-option" data-payment="dinheiro"><input type="radio" name="payment" value="dinheiro"><div class="payment-option-icon">💵</div><div class="payment-option-name">Dinheiro</div></label>
+          <label class="payment-option" data-payment="cartao_credito"><input type="radio" name="payment" value="cartao_credito"><div class="payment-option-icon">💳</div><div class="payment-option-name">Crédito</div></label>
+          <label class="payment-option" data-payment="cartao_debito"><input type="radio" name="payment" value="cartao_debito"><div class="payment-option-icon">💳</div><div class="payment-option-name">Débito</div></label>
+        </div>
+        <div class="form-group" id="trocoGroup" style="display:none;"><label class="form-label">Troco para?</label><input type="text" class="form-control" id="trocoValue" placeholder="R$ 100,00"></div>
+        <div id="pixInfo" style="display:none;"><div class="pix-box"><div class="pix-title">Chave PIX</div><div class="pix-key" id="pixKey">Carregando...</div><p style="color:var(--text-secondary);font-size:0.9rem;">Envie o comprovante via WhatsApp</p></div></div>
+        <h4 style="margin:25px 0 15px;">📦 Resumo</h4>
+        <div id="orderSummary"></div>
+        <div class="cart-total" style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border-color);"><span>Total:</span><span class="cart-total-value" id="checkoutTotal">R$ 0,00</span></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" onclick="closeCheckout()">Voltar</button><button class="btn btn-primary" onclick="confirmOrder()" id="confirmOrderBtn">Confirmar</button></div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="successModal">
+    <div class="modal" style="max-width:500px;">
+      <div class="modal-body" style="text-align:center;padding:50px;">
+        <div style="font-size:5rem;margin-bottom:20px;">🎉</div>
+        <h2 style="margin-bottom:15px;">Pedido Confirmado!</h2>
+        <p style="color:var(--text-secondary);margin-bottom:10px;">Pedido <strong id="orderNumber">#0000</strong> recebido!</p>
+        <p style="color:var(--text-secondary);margin-bottom:30px;">Acompanhe o status do seu pedido.</p>
+        <div id="whatsappBtnContainer"></div>
+        <button class="btn btn-secondary" style="margin-top:15px;" onclick="closeSuccessModal()">Novo Pedido</button>
+      </div>
+    </div>
+  </div>
+  <script src="js/store.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "tokyo-sushi-delivery",
+  "version": "1.0.0",
+  "description": "Sistema de delivery para Tokyo Sushi",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx live-server --port=3000",
+    "start": "npx live-server --port=3000"
+  },
+  "keywords": ["sushi", "delivery", "restaurant"],
+  "author": "Tokyo Sushi",
+  "license": "MIT"
+}

@@ -1,0 +1,352 @@
+// ===== TOKYO SUSHI - ADMIN JS =====
+
+const API_URL = 'https://script.google.com/macros/s/AKfycbxlT9SG2YyQ4ZphlLkNP4H_osQ1R8m4XEiBDnH8t-M4JGXAw5PqOf-m27wod7CTLub-/exec';
+let products = [];
+let orders = [];
+let config = {};
+
+// DOM
+const loader = document.getElementById('loader');
+const toastContainer = document.getElementById('toastContainer');
+
+// Init
+document.addEventListener('DOMContentLoaded', init);
+
+async function init() {
+    setupNavigation();
+    setupOrderFilters();
+    await loadAll();
+    hideLoader();
+}
+
+async function loadAll() {
+    await Promise.all([loadConfig(), loadProducts(), loadOrders()]);
+    updateDashboard();
+}
+
+// Navigation
+function setupNavigation() {
+    document.querySelectorAll('.admin-menu-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const section = link.dataset.section;
+            document.querySelectorAll('.admin-menu-link').forEach(l => l.classList.remove('active'));
+            link.classList.add('active');
+            document.querySelectorAll('.admin-section').forEach(s => s.style.display = 'none');
+            document.getElementById(section).style.display = 'block';
+        });
+    });
+}
+
+// API
+async function loadConfig() {
+    try {
+        const res = await fetch(`${API_URL}?action=getConfig`);
+        const data = await res.json();
+        if (data.success) {
+            config = data.config;
+            document.getElementById('configStoreName').value = config.storeName || 'Tokyo Sushi';
+            document.getElementById('configWhatsapp').value = config.whatsapp || '';
+            document.getElementById('configPixKey').value = config.pixKey || '';
+            document.getElementById('configAddress').value = config.address || '';
+        }
+    } catch (e) { console.error(e); }
+}
+
+async function loadProducts() {
+    try {
+        const res = await fetch(`${API_URL}?action=getProducts`);
+        const data = await res.json();
+        if (data.success) {
+            products = data.products;
+            renderProductsTable();
+        }
+    } catch (e) { console.error(e); }
+}
+
+async function loadOrders() {
+    try {
+        const res = await fetch(`${API_URL}?action=getOrders`);
+        const data = await res.json();
+        if (data.success) {
+            orders = data.orders;
+            renderOrders();
+            renderRecentOrders();
+        }
+    } catch (e) { console.error(e); }
+}
+
+// Dashboard
+function updateDashboard() {
+    const today = new Date().toDateString();
+    const todayOrders = orders.filter(o => new Date(o.data).toDateString() === today);
+    const pending = orders.filter(o => o.status === 'pendente').length;
+    const todaySales = todayOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+
+    document.getElementById('statOrdersToday').textContent = todayOrders.length;
+    document.getElementById('statSalesToday').textContent = `R$ ${todaySales.toFixed(2).replace('.', ',')}`;
+    document.getElementById('statPending').textContent = pending;
+    document.getElementById('statProducts').textContent = products.length;
+}
+
+function renderRecentOrders() {
+    const recent = orders.slice(0, 5);
+    const container = document.getElementById('recentOrders');
+
+    if (recent.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-secondary);">Nenhum pedido ainda</p>';
+        return;
+    }
+
+    container.innerHTML = recent.map(o => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:15px;border-bottom:1px solid var(--border-color);">
+      <div>
+        <strong>#${o.id}</strong> - ${o.cliente?.nome || 'Cliente'}
+        <br><small style="color:var(--text-secondary);">${formatDate(o.data)}</small>
+      </div>
+      <div style="text-align:right;">
+        <span class="badge badge-${getStatusClass(o.status)}">${getStatusLabel(o.status)}</span>
+        <br><strong style="color:var(--accent);">R$ ${formatPrice(o.total)}</strong>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Products
+function renderProductsTable() {
+    const tbody = document.getElementById('productsTable');
+    tbody.innerHTML = products.map(p => `
+    <tr>
+      <td><img src="${p.imagem || 'assets/placeholder.png'}" alt="${p.nome}" onerror="this.src='assets/placeholder.png'"></td>
+      <td><strong>${p.nome}</strong><br><small style="color:var(--text-secondary);">${p.descricao?.substring(0, 50) || ''}...</small></td>
+      <td>${p.categoria || '-'}</td>
+      <td><strong style="color:var(--accent);">R$ ${formatPrice(p.preco)}</strong></td>
+      <td><span class="badge ${p.ativo ? 'badge-delivered' : 'badge-cancelled'}">${p.ativo ? 'Ativo' : 'Inativo'}</span></td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="editProduct('${p.id}')">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')">Excluir</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openProductModal(product = null) {
+    document.getElementById('productModalTitle').textContent = product ? 'Editar Produto' : 'Novo Produto';
+    document.getElementById('productId').value = product?.id || '';
+    document.getElementById('productName').value = product?.nome || '';
+    document.getElementById('productDesc').value = product?.descricao || '';
+    document.getElementById('productCategory').value = product?.categoria || '';
+    document.getElementById('productPrice').value = product?.preco || '';
+    document.getElementById('productImage').value = product?.imagem || '';
+    document.getElementById('productActive').checked = product?.ativo !== false;
+    document.getElementById('productFeatured').checked = product?.destaque === true;
+    document.getElementById('productModal').classList.add('active');
+}
+
+function closeProductModal() {
+    document.getElementById('productModal').classList.remove('active');
+}
+
+function editProduct(id) {
+    const product = products.find(p => p.id === id);
+    if (product) openProductModal(product);
+}
+
+async function saveProduct() {
+    const id = document.getElementById('productId').value;
+    const data = {
+        id: id || Date.now().toString(),
+        nome: document.getElementById('productName').value.trim(),
+        descricao: document.getElementById('productDesc').value.trim(),
+        categoria: document.getElementById('productCategory').value.trim(),
+        preco: parseFloat(document.getElementById('productPrice').value) || 0,
+        imagem: document.getElementById('productImage').value.trim(),
+        ativo: document.getElementById('productActive').checked,
+        destaque: document.getElementById('productFeatured').checked
+    };
+
+    if (!data.nome || !data.preco) {
+        showToast('Preencha nome e preço', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: id ? 'updateProduct' : 'createProduct', data })
+        });
+        const result = await res.json();
+        if (result.success) {
+            showToast('Produto salvo!', 'success');
+            closeProductModal();
+            await loadProducts();
+            updateDashboard();
+        } else {
+            showToast('Erro ao salvar', 'error');
+        }
+    } catch (e) {
+        showToast('Erro de conexão', 'error');
+    }
+}
+
+async function deleteProduct(id) {
+    if (!confirm('Excluir este produto?')) return;
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'deleteProduct', data: { id } })
+        });
+        const result = await res.json();
+        if (result.success) {
+            showToast('Produto excluído', 'success');
+            await loadProducts();
+            updateDashboard();
+        }
+    } catch (e) {
+        showToast('Erro', 'error');
+    }
+}
+
+// Orders
+function setupOrderFilters() {
+    document.querySelectorAll('#orders .category-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('#orders .category-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderOrders(btn.dataset.status);
+        });
+    });
+}
+
+function renderOrders(filter = 'all') {
+    const filtered = filter === 'all' ? orders : orders.filter(o => o.status === filter);
+    const container = document.getElementById('ordersList');
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><h3>Nenhum pedido</h3></div>';
+        return;
+    }
+
+    container.innerHTML = filtered.map(o => `
+    <div class="order-card">
+      <div class="order-header">
+        <div>
+          <span class="order-id">#${o.id}</span>
+          <span class="order-time">${formatDate(o.data)}</span>
+        </div>
+        <span class="badge badge-${getStatusClass(o.status)}">${getStatusLabel(o.status)}</span>
+      </div>
+      <div class="order-body">
+        <div class="order-customer">
+          <p><strong>Cliente:</strong> ${o.cliente?.nome || '-'}</p>
+          <p><strong>Telefone:</strong> ${o.cliente?.telefone || '-'}</p>
+          <p><strong>Endereço:</strong> ${o.cliente?.endereco || '-'} ${o.cliente?.complemento || ''}</p>
+          <p><strong>Pagamento:</strong> ${getPaymentLabel(o.pagamento)} ${o.troco ? `(Troco: ${o.troco})` : ''}</p>
+          ${o.observacoes ? `<p><strong>Obs:</strong> ${o.observacoes}</p>` : ''}
+        </div>
+        <div class="order-items-list">
+          ${(o.itens || []).map(i => `
+            <div class="order-item-row">
+              <span>${i.qtd}x ${i.nome}</span>
+              <span>R$ ${formatPrice(i.preco * i.qtd)}</span>
+            </div>
+          `).join('')}
+        </div>
+        <div class="order-total">
+          <span>Total:</span>
+          <span class="order-total-value">R$ ${formatPrice(o.total)}</span>
+        </div>
+      </div>
+      <div class="order-actions">
+        ${o.status === 'pendente' ? `<button class="btn btn-primary btn-sm" onclick="updateOrderStatus('${o.id}', 'preparando')">🍳 Preparando</button>` : ''}
+        ${o.status === 'preparando' ? `<button class="btn btn-accent btn-sm" onclick="updateOrderStatus('${o.id}', 'saiu')">🛵 Saiu p/ Entrega</button>` : ''}
+        ${o.status === 'saiu' ? `<button class="btn btn-success btn-sm" onclick="updateOrderStatus('${o.id}', 'entregue')">✅ Entregue</button>` : ''}
+        ${o.cliente?.telefone ? `<a href="https://wa.me/${o.cliente.telefone.replace(/\D/g, '')}" target="_blank" class="btn whatsapp-btn btn-sm">WhatsApp</a>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function updateOrderStatus(id, status) {
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'updateOrderStatus', data: { id, status } })
+        });
+        const result = await res.json();
+        if (result.success) {
+            showToast('Status atualizado!', 'success');
+            await loadOrders();
+            updateDashboard();
+        }
+    } catch (e) {
+        showToast('Erro', 'error');
+    }
+}
+
+// Config
+async function saveConfig() {
+    const data = {
+        storeName: document.getElementById('configStoreName').value.trim(),
+        whatsapp: document.getElementById('configWhatsapp').value.trim(),
+        pixKey: document.getElementById('configPixKey').value.trim(),
+        address: document.getElementById('configAddress').value.trim()
+    };
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'saveConfig', data })
+        });
+        const result = await res.json();
+        if (result.success) {
+            showToast('Configurações salvas!', 'success');
+            config = data;
+        }
+    } catch (e) {
+        showToast('Erro', 'error');
+    }
+}
+
+// Helpers
+function getStatusClass(status) {
+    const map = { pendente: 'pending', preparando: 'preparing', saiu: 'delivery', entregue: 'delivered', cancelado: 'cancelled' };
+    return map[status] || 'pending';
+}
+
+function getStatusLabel(status) {
+    const map = { pendente: 'Pendente', preparando: 'Preparando', saiu: 'Saiu p/ Entrega', entregue: 'Entregue', cancelado: 'Cancelado' };
+    return map[status] || status;
+}
+
+function getPaymentLabel(payment) {
+    const map = { pix: 'PIX', dinheiro: 'Dinheiro', cartao_credito: 'Cartão Crédito', cartao_debito: 'Cartão Débito' };
+    return map[payment] || payment;
+}
+
+function formatPrice(v) {
+    return Number(v || 0).toFixed(2).replace('.', ',');
+}
+
+function formatDate(d) {
+    if (!d) return '-';
+    const date = new Date(d);
+    return date.toLocaleString('pt-BR');
+}
+
+function hideLoader() {
+    loader.style.opacity = '0';
+    setTimeout(() => loader.style.display = 'none', 300);
+}
+
+function showToast(msg, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `<span>${msg}</span>`;
+    toastContainer.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+}
