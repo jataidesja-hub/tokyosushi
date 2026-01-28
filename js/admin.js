@@ -4,6 +4,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxlT9SG2YyQ4ZphlLkNP4H_
 let products = [];
 let orders = [];
 let config = {};
+let pendingImageData = null; // Para armazenar imagem pendente de upload
 
 // DOM
 const loader = document.getElementById('loader');
@@ -20,8 +21,13 @@ async function init() {
 }
 
 async function loadAll() {
-    await Promise.all([loadConfig(), loadProducts(), loadOrders()]);
-    updateDashboard();
+    try {
+        await Promise.all([loadConfig(), loadProducts(), loadOrders()]);
+        updateDashboard();
+    } catch (e) {
+        console.error('Erro ao carregar dados:', e);
+        showToast('Erro ao carregar dados. Verifique a conexão.', 'error');
+    }
 }
 
 // Navigation
@@ -50,7 +56,9 @@ async function loadConfig() {
             document.getElementById('configPixKey').value = config.pixKey || '';
             document.getElementById('configAddress').value = config.address || '';
         }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error('Erro ao carregar config:', e);
+    }
 }
 
 async function loadProducts() {
@@ -61,7 +69,9 @@ async function loadProducts() {
             products = data.products;
             renderProductsTable();
         }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error('Erro ao carregar produtos:', e);
+    }
 }
 
 async function loadOrders() {
@@ -73,7 +83,9 @@ async function loadOrders() {
             renderOrders();
             renderRecentOrders();
         }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error('Erro ao carregar pedidos:', e);
+    }
 }
 
 // Dashboard
@@ -115,6 +127,10 @@ function renderRecentOrders() {
 // Products
 function renderProductsTable() {
     const tbody = document.getElementById('productsTable');
+    if (products.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-secondary);">Nenhum produto cadastrado</td></tr>';
+        return;
+    }
     tbody.innerHTML = products.map(p => `
     <tr>
       <td><img src="${p.imagem || 'assets/placeholder.png'}" alt="${p.nome}" onerror="this.src='assets/placeholder.png'"></td>
@@ -140,11 +156,29 @@ function openProductModal(product = null) {
     document.getElementById('productImage').value = product?.imagem || '';
     document.getElementById('productActive').checked = product?.ativo !== false;
     document.getElementById('productFeatured').checked = product?.destaque === true;
+
+    // Reset image upload
+    pendingImageData = null;
+    const preview = document.getElementById('imagePreview');
+    const content = document.getElementById('imageUploadContent');
+    const fileInput = document.getElementById('productImageFile');
+
+    if (product?.imagem) {
+        preview.src = product.imagem;
+        preview.style.display = 'block';
+        content.style.display = 'none';
+    } else {
+        preview.style.display = 'none';
+        content.style.display = 'block';
+    }
+    fileInput.value = '';
+
     document.getElementById('productModal').classList.add('active');
 }
 
 function closeProductModal() {
     document.getElementById('productModal').classList.remove('active');
+    pendingImageData = null;
 }
 
 function editProduct(id) {
@@ -152,15 +186,79 @@ function editProduct(id) {
     if (product) openProductModal(product);
 }
 
+// Handle image upload
+function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        showToast('Por favor, selecione uma imagem', 'error');
+        return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+        showToast('Imagem muito grande. Máximo 5MB', 'error');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const imageData = e.target.result;
+        pendingImageData = {
+            image: imageData,
+            fileName: file.name
+        };
+
+        // Show preview
+        const preview = document.getElementById('imagePreview');
+        const content = document.getElementById('imageUploadContent');
+        preview.src = imageData;
+        preview.style.display = 'block';
+        content.style.display = 'none';
+
+        showToast('Imagem carregada!', 'success');
+    };
+    reader.readAsDataURL(file);
+}
+
+async function uploadImageToServer(imageData) {
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'uploadImage', data: imageData })
+        });
+        const result = await res.json();
+        return result;
+    } catch (e) {
+        console.error('Erro no upload:', e);
+        return { success: false, error: e.toString() };
+    }
+}
+
 async function saveProduct() {
     const id = document.getElementById('productId').value;
+    let imageUrl = document.getElementById('productImage').value.trim();
+
+    // Se tem imagem pendente para upload
+    if (pendingImageData) {
+        showToast('Enviando imagem...', 'info');
+        const uploadResult = await uploadImageToServer(pendingImageData);
+        if (uploadResult.success) {
+            imageUrl = uploadResult.imageUrl;
+        } else {
+            showToast('Erro ao enviar imagem: ' + (uploadResult.error || 'Tente novamente'), 'error');
+            return;
+        }
+    }
+
     const data = {
         id: id || Date.now().toString(),
         nome: document.getElementById('productName').value.trim(),
         descricao: document.getElementById('productDesc').value.trim(),
         categoria: document.getElementById('productCategory').value.trim(),
         preco: parseFloat(document.getElementById('productPrice').value) || 0,
-        imagem: document.getElementById('productImage').value.trim(),
+        imagem: imageUrl,
         ativo: document.getElementById('productActive').checked,
         destaque: document.getElementById('productFeatured').checked
     };
@@ -169,6 +267,8 @@ async function saveProduct() {
         showToast('Preencha nome e preço', 'error');
         return;
     }
+
+    showToast('Salvando produto...', 'info');
 
     try {
         const res = await fetch(API_URL, {
@@ -183,9 +283,10 @@ async function saveProduct() {
             await loadProducts();
             updateDashboard();
         } else {
-            showToast('Erro ao salvar', 'error');
+            showToast('Erro ao salvar: ' + (result.error || ''), 'error');
         }
     } catch (e) {
+        console.error('Erro:', e);
         showToast('Erro de conexão', 'error');
     }
 }
@@ -263,7 +364,7 @@ function renderOrders(filter = 'all') {
         ${o.status === 'pendente' ? `<button class="btn btn-primary btn-sm" onclick="updateOrderStatus('${o.id}', 'preparando')">🍳 Preparando</button>` : ''}
         ${o.status === 'preparando' ? `<button class="btn btn-accent btn-sm" onclick="updateOrderStatus('${o.id}', 'saiu')">🛵 Saiu p/ Entrega</button>` : ''}
         ${o.status === 'saiu' ? `<button class="btn btn-success btn-sm" onclick="updateOrderStatus('${o.id}', 'entregue')">✅ Entregue</button>` : ''}
-        ${o.cliente?.telefone ? `<a href="https://wa.me/${o.cliente.telefone.replace(/\D/g, '')}" target="_blank" class="btn whatsapp-btn btn-sm">WhatsApp</a>` : ''}
+        ${o.cliente?.telefone ? `<a href="https://wa.me/${o.cliente.telefone.replace(/\\D/g, '')}" target="_blank" class="btn whatsapp-btn btn-sm">WhatsApp</a>` : ''}
       </div>
     </div>
   `).join('');
@@ -296,6 +397,8 @@ async function saveConfig() {
         address: document.getElementById('configAddress').value.trim()
     };
 
+    showToast('Salvando...', 'info');
+
     try {
         const res = await fetch(API_URL, {
             method: 'POST',
@@ -306,9 +409,11 @@ async function saveConfig() {
         if (result.success) {
             showToast('Configurações salvas!', 'success');
             config = data;
+        } else {
+            showToast('Erro ao salvar', 'error');
         }
     } catch (e) {
-        showToast('Erro', 'error');
+        showToast('Erro de conexão', 'error');
     }
 }
 

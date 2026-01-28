@@ -1,8 +1,11 @@
 // ===== TOKYO SUSHI - GOOGLE APPS SCRIPT =====
 // Cole este código no Google Apps Script (script.google.com)
 
-// ID da planilha - substitua pelo ID da sua planilha
+// ID da planilha
 const SPREADSHEET_ID = '1ax-bknAR_532sAoN0pDTkGar5VML_m-TO9GDvc-xCIE';
+
+// ID da pasta do Drive para imagens (será criada automaticamente)
+let IMAGES_FOLDER_ID = '';
 
 // Nomes das abas
 const SHEETS = {
@@ -16,18 +19,22 @@ function doGet(e) {
   const action = e.parameter.action;
   let result;
   
-  switch(action) {
-    case 'getProducts':
-      result = getProducts();
-      break;
-    case 'getOrders':
-      result = getOrders();
-      break;
-    case 'getConfig':
-      result = getConfig();
-      break;
-    default:
-      result = { success: false, error: 'Ação inválida' };
+  try {
+    switch(action) {
+      case 'getProducts':
+        result = getProducts();
+        break;
+      case 'getOrders':
+        result = getOrders();
+        break;
+      case 'getConfig':
+        result = getConfig();
+        break;
+      default:
+        result = { success: false, error: 'Ação inválida' };
+    }
+  } catch(error) {
+    result = { success: false, error: error.toString() };
   }
   
   return ContentService
@@ -62,6 +69,9 @@ function doPost(e) {
         break;
       case 'saveConfig':
         result = saveConfig(data);
+        break;
+      case 'uploadImage':
+        result = uploadImage(data);
         break;
       default:
         result = { success: false, error: 'Ação inválida' };
@@ -102,9 +112,82 @@ function setup() {
     configSheet.appendRow(['whatsapp', '']);
     configSheet.appendRow(['pixKey', '']);
     configSheet.appendRow(['address', '']);
+    configSheet.appendRow(['imagesFolderId', '']);
   }
   
+  // Criar pasta de imagens no Drive
+  createImagesFolder();
+  
   Logger.log('Setup concluído!');
+}
+
+// Criar pasta para imagens no Drive
+function createImagesFolder() {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const configSheet = ss.getSheetByName(SHEETS.CONFIG);
+    const data = configSheet.getDataRange().getValues();
+    
+    // Verificar se já existe pasta configurada
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === 'imagesFolderId' && data[i][1]) {
+        IMAGES_FOLDER_ID = data[i][1];
+        return;
+      }
+    }
+    
+    // Criar nova pasta
+    const folder = DriveApp.createFolder('Tokyo Sushi - Imagens');
+    folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    IMAGES_FOLDER_ID = folder.getId();
+    
+    // Salvar ID da pasta
+    configSheet.appendRow(['imagesFolderId', IMAGES_FOLDER_ID]);
+    
+    Logger.log('Pasta de imagens criada: ' + IMAGES_FOLDER_ID);
+  } catch(error) {
+    Logger.log('Erro ao criar pasta: ' + error.toString());
+  }
+}
+
+// Upload de imagem para o Drive
+function uploadImage(data) {
+  try {
+    // Obter pasta de imagens
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const configSheet = ss.getSheetByName(SHEETS.CONFIG);
+    const configData = configSheet.getDataRange().getValues();
+    
+    let folderId = '';
+    for (let i = 1; i < configData.length; i++) {
+      if (configData[i][0] === 'imagesFolderId') {
+        folderId = configData[i][1];
+        break;
+      }
+    }
+    
+    if (!folderId) {
+      createImagesFolder();
+      folderId = IMAGES_FOLDER_ID;
+    }
+    
+    // Decodificar base64
+    const base64Data = data.image.split(',')[1];
+    const mimeType = data.image.match(/data:([^;]+);/)[1];
+    const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, data.fileName);
+    
+    // Salvar no Drive
+    const folder = DriveApp.getFolderById(folderId);
+    const file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    
+    // Retornar URL da imagem
+    const imageUrl = 'https://drive.google.com/uc?export=view&id=' + file.getId();
+    
+    return { success: true, imageUrl: imageUrl };
+  } catch(error) {
+    return { success: false, error: error.toString() };
+  }
 }
 
 // ===== PRODUTOS =====
@@ -113,7 +196,6 @@ function getProducts() {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const sheet = ss.getSheetByName(SHEETS.PRODUCTS);
     const data = sheet.getDataRange().getValues();
-    const headers = data[0];
     
     const products = [];
     for (let i = 1; i < data.length; i++) {
@@ -239,7 +321,6 @@ function getOrders() {
       }
     }
     
-    // Ordenar por data mais recente
     orders.sort((a, b) => new Date(b.data) - new Date(a.data));
     
     return { success: true, orders };
@@ -253,7 +334,6 @@ function createOrder(data) {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const sheet = ss.getSheetByName(SHEETS.ORDERS);
     
-    // Gerar ID do pedido
     const orderId = generateOrderId();
     
     sheet.appendRow([
@@ -331,17 +411,17 @@ function saveConfig(data) {
     const sheet = ss.getSheetByName(SHEETS.CONFIG);
     const allData = sheet.getDataRange().getValues();
     
-    const configMap = {
-      storeName: 2,
-      whatsapp: 3,
-      pixKey: 4,
-      address: 5
-    };
-    
     for (const key in data) {
-      const row = configMap[key];
-      if (row) {
-        sheet.getRange(row, 2).setValue(data[key]);
+      let found = false;
+      for (let i = 1; i < allData.length; i++) {
+        if (allData[i][0] === key) {
+          sheet.getRange(i + 1, 2).setValue(data[key]);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        sheet.appendRow([key, data[key]]);
       }
     }
     
