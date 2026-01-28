@@ -1,10 +1,12 @@
 // ===== TOKYO SUSHI - ADMIN JS =====
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbxlT9SG2YyQ4ZphlLkNP4H_osQ1R8m4XEiBDnH8t-M4JGXAw5PqOf-m27wod7CTLub-/exec';
+const IMGBB_API_KEY = '4fd8ad13a8a9b0b08a09db40a8c0f32a'; // API key pública para imagens
+
 let products = [];
 let orders = [];
 let config = {};
-let pendingImageData = null; // Para armazenar imagem pendente de upload
+let pendingImageData = null;
 
 // DOM
 const loader = document.getElementById('loader');
@@ -26,7 +28,7 @@ async function loadAll() {
         updateDashboard();
     } catch (e) {
         console.error('Erro ao carregar dados:', e);
-        showToast('Erro ao carregar dados. Verifique a conexão.', 'error');
+        showToast('Erro ao carregar dados', 'error');
     }
 }
 
@@ -171,7 +173,7 @@ function openProductModal(product = null) {
         preview.style.display = 'none';
         content.style.display = 'block';
     }
-    fileInput.value = '';
+    if (fileInput) fileInput.value = '';
 
     document.getElementById('productModal').classList.add('active');
 }
@@ -204,10 +206,8 @@ function handleImageUpload(event) {
     const reader = new FileReader();
     reader.onload = function (e) {
         const imageData = e.target.result;
-        pendingImageData = {
-            image: imageData,
-            fileName: file.name
-        };
+        // Extrair apenas a parte base64
+        pendingImageData = imageData.split(',')[1];
 
         // Show preview
         const preview = document.getElementById('imagePreview');
@@ -221,17 +221,23 @@ function handleImageUpload(event) {
     reader.readAsDataURL(file);
 }
 
-async function uploadImageToServer(imageData) {
+// Upload to ImgBB
+async function uploadToImgBB(base64Image) {
+    const formData = new FormData();
+    formData.append('key', IMGBB_API_KEY);
+    formData.append('image', base64Image);
+
     try {
-        const res = await fetch(API_URL, {
+        const response = await fetch('https://api.imgbb.com/1/upload', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'uploadImage', data: imageData })
+            body: formData
         });
-        const result = await res.json();
-        return result;
+        const data = await response.json();
+        if (data.success) {
+            return { success: true, url: data.data.url };
+        }
+        return { success: false, error: data.error?.message || 'Erro no upload' };
     } catch (e) {
-        console.error('Erro no upload:', e);
         return { success: false, error: e.toString() };
     }
 }
@@ -243,11 +249,12 @@ async function saveProduct() {
     // Se tem imagem pendente para upload
     if (pendingImageData) {
         showToast('Enviando imagem...', 'info');
-        const uploadResult = await uploadImageToServer(pendingImageData);
+        const uploadResult = await uploadToImgBB(pendingImageData);
         if (uploadResult.success) {
-            imageUrl = uploadResult.imageUrl;
+            imageUrl = uploadResult.url;
+            showToast('Imagem enviada!', 'success');
         } else {
-            showToast('Erro ao enviar imagem: ' + (uploadResult.error || 'Tente novamente'), 'error');
+            showToast('Erro ao enviar imagem: ' + uploadResult.error, 'error');
             return;
         }
     }
@@ -273,7 +280,7 @@ async function saveProduct() {
     try {
         const res = await fetch(API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ action: id ? 'updateProduct' : 'createProduct', data })
         });
         const result = await res.json();
@@ -296,7 +303,7 @@ async function deleteProduct(id) {
     try {
         const res = await fetch(API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ action: 'deleteProduct', data: { id } })
         });
         const result = await res.json();
@@ -374,7 +381,7 @@ async function updateOrderStatus(id, status) {
     try {
         const res = await fetch(API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ action: 'updateOrderStatus', data: { id, status } })
         });
         const result = await res.json();
@@ -402,7 +409,7 @@ async function saveConfig() {
     try {
         const res = await fetch(API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ action: 'saveConfig', data })
         });
         const result = await res.json();

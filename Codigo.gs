@@ -4,9 +4,6 @@
 // ID da planilha
 const SPREADSHEET_ID = '1ax-bknAR_532sAoN0pDTkGar5VML_m-TO9GDvc-xCIE';
 
-// ID da pasta do Drive para imagens (será criada automaticamente)
-let IMAGES_FOLDER_ID = '';
-
 // Nomes das abas
 const SHEETS = {
   PRODUCTS: 'Produtos',
@@ -70,9 +67,6 @@ function doPost(e) {
       case 'saveConfig':
         result = saveConfig(data);
         break;
-      case 'uploadImage':
-        result = uploadImage(data);
-        break;
       default:
         result = { success: false, error: 'Ação inválida' };
     }
@@ -112,82 +106,9 @@ function setup() {
     configSheet.appendRow(['whatsapp', '']);
     configSheet.appendRow(['pixKey', '']);
     configSheet.appendRow(['address', '']);
-    configSheet.appendRow(['imagesFolderId', '']);
   }
-  
-  // Criar pasta de imagens no Drive
-  createImagesFolder();
   
   Logger.log('Setup concluído!');
-}
-
-// Criar pasta para imagens no Drive
-function createImagesFolder() {
-  try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const configSheet = ss.getSheetByName(SHEETS.CONFIG);
-    const data = configSheet.getDataRange().getValues();
-    
-    // Verificar se já existe pasta configurada
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === 'imagesFolderId' && data[i][1]) {
-        IMAGES_FOLDER_ID = data[i][1];
-        return;
-      }
-    }
-    
-    // Criar nova pasta
-    const folder = DriveApp.createFolder('Tokyo Sushi - Imagens');
-    folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    IMAGES_FOLDER_ID = folder.getId();
-    
-    // Salvar ID da pasta
-    configSheet.appendRow(['imagesFolderId', IMAGES_FOLDER_ID]);
-    
-    Logger.log('Pasta de imagens criada: ' + IMAGES_FOLDER_ID);
-  } catch(error) {
-    Logger.log('Erro ao criar pasta: ' + error.toString());
-  }
-}
-
-// Upload de imagem para o Drive
-function uploadImage(data) {
-  try {
-    // Obter pasta de imagens
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const configSheet = ss.getSheetByName(SHEETS.CONFIG);
-    const configData = configSheet.getDataRange().getValues();
-    
-    let folderId = '';
-    for (let i = 1; i < configData.length; i++) {
-      if (configData[i][0] === 'imagesFolderId') {
-        folderId = configData[i][1];
-        break;
-      }
-    }
-    
-    if (!folderId) {
-      createImagesFolder();
-      folderId = IMAGES_FOLDER_ID;
-    }
-    
-    // Decodificar base64
-    const base64Data = data.image.split(',')[1];
-    const mimeType = data.image.match(/data:([^;]+);/)[1];
-    const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, data.fileName);
-    
-    // Salvar no Drive
-    const folder = DriveApp.getFolderById(folderId);
-    const file = folder.createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    
-    // Retornar URL da imagem
-    const imageUrl = 'https://drive.google.com/uc?export=view&id=' + file.getId();
-    
-    return { success: true, imageUrl: imageUrl };
-  } catch(error) {
-    return { success: false, error: error.toString() };
-  }
 }
 
 // ===== PRODUTOS =====
