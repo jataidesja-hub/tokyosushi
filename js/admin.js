@@ -57,6 +57,7 @@ async function loadConfig() {
             document.getElementById('configWhatsapp').value = config.whatsapp || '';
             document.getElementById('configPixKey').value = config.pixKey || '';
             document.getElementById('configAddress').value = config.address || '';
+            document.getElementById('configImgbbKey').value = config.imgbbKey || '708687a716c56f2ec57d7714570077cd';
         }
     } catch (e) {
         console.error('Erro ao carregar config:', e);
@@ -223,8 +224,9 @@ function handleImageUpload(event) {
 
 // Upload to ImgBB
 async function uploadToImgBB(base64Image) {
+    const key = document.getElementById('configImgbbKey').value.trim() || '708687a716c56f2ec57d7714570077cd';
     const formData = new FormData();
-    formData.append('key', IMGBB_API_KEY);
+    formData.append('key', key);
     formData.append('image', base64Image);
 
     try {
@@ -401,7 +403,8 @@ async function saveConfig() {
         storeName: document.getElementById('configStoreName').value.trim(),
         whatsapp: document.getElementById('configWhatsapp').value.trim(),
         pixKey: document.getElementById('configPixKey').value.trim(),
-        address: document.getElementById('configAddress').value.trim()
+        address: document.getElementById('configAddress').value.trim(),
+        imgbbKey: document.getElementById('configImgbbKey').value.trim()
     };
 
     showToast('Salvando...', 'info');
