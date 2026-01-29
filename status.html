@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Acompanhar Pedido - Tokyo Sushi</title>
+    <link rel="stylesheet" href="css/styles.css?v=1.6">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="loader" id="loader">
+        <div class="loader-spinner"></div>
+    </div>
+
+    <header class="header">
+        <div class="container">
+            <div class="header-main">
+                <div class="logo">
+                    <img src="assets/logo.png" alt="Tokyo Sushi">
+                    <div class="logo-text">
+                        <h1>TO<span>K</span>YO</h1>
+                        <p>SUSHI</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="status-tracker" id="statusTracker">
+            <div class="status-card">
+                <div id="statusContent">
+                    <p>Buscando informações do pedido...</p>
+                </div>
+                <div style="margin-top: 40px;">
+                    <a href="index.html" class="btn btn-secondary">Voltar ao Cardápio</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbxlT9SG2YyQ4ZphlLkNP4H_osQ1R8m4XEiBDnH8t-M4JGXAw5PqOf-m27wod7CTLub-/exec';
+
+        async function fetchStatus() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('id');
+            const loader = document.getElementById('loader');
+            const content = document.getElementById('statusContent');
+
+            if (!orderId) {
+                content.innerHTML = '<h2>ID do pedido não informado</h2>';
+                loader.style.display = 'none';
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}?action=getOrders`);
+                const data = await res.json();
+
+                if (data.success) {
+                    const order = data.orders.find(o => String(o.id) === String(orderId));
+                    if (order) {
+                        renderStatus(order);
+                    } else {
+                        content.innerHTML = '<h2>Pedido não encontrado</h2>';
+                    }
+                }
+            } catch (e) {
+                content.innerHTML = '<h2>Erro ao carregar status</h2>';
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        function renderStatus(order) {
+            const container = document.getElementById('statusContent');
+            const status = order.status || 'pendente';
+
+            const icons = {
+                pendente: '⏳',
+                preparando: '👨‍🍳',
+                saiu: '🛵',
+                entregue: '🎉',
+                cancelado: '❌'
+            };
+
+            const labels = {
+                pendente: 'Aguardando Aprovação',
+                preparando: 'Em Preparação',
+                saiu: 'Saiu para Entrega',
+                entregue: 'Pedido Entregue',
+                cancelado: 'Pedido Cancelado'
+            };
+
+            container.innerHTML = `
+                <div class="status-icon">${icons[status] || '📦'}</div>
+                <div class="order-id-label">Pedido #${order.id}</div>
+                <div class="status-label">${labels[status] || status}</div>
+                
+                <div class="tracking-steps" style="margin-top: 40px;">
+                    <div class="tracking-step ${['pendente', 'preparando', 'saiu', 'entregue'].includes(status) ? 'active' : ''}">
+                        <div class="step-dot"></div>
+                        <div class="step-info"><b>Recebido</b><span>O restaurante recebeu seu pedido</span></div>
+                    </div>
+                    <div class="tracking-step ${['preparando', 'saiu', 'entregue'].includes(status) ? 'active' : ''}">
+                        <div class="step-dot"></div>
+                        <div class="step-info"><b>Preparando</b><span>Seu sushi está sendo preparado agora</span></div>
+                    </div>
+                    <div class="tracking-step ${['saiu', 'entregue'].includes(status) ? 'active' : ''}">
+                        <div class="step-dot"></div>
+                        <div class="step-info"><b>Em rota de entrega</b><span>O motoboy já saiu com seu pedido</span></div>
+                    </div>
+                    <div class="tracking-step ${status === 'entregue' ? 'active' : ''}">
+                        <div class="step-dot"></div>
+                        <div class="step-info"><b>Entregue</b><span>Aproveite sua refeição!</span></div>
+                    </div>
+                </div>
+            `;
+
+            // Auto-refresh a cada 30 segundos
+            setTimeout(fetchStatus, 30000);
+        }
+
+        window.onload = fetchStatus;
+    </script>
+</body>
+
+</html>

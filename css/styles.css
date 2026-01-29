@@ -597,13 +597,158 @@ body::before {
 }
 
 
-/* BADGES */
-.badge {
-    padding: 6px 15px;
-    border-radius: 20px;
-    font-size: 0.75rem;
+/* PAYMENT OPTIONS */
+.payment-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.payment-option {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 15px;
+    cursor: pointer;
+    text-align: center;
+    transition: 0.3s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.payment-option:hover {
+    border-color: var(--primary);
+}
+
+.payment-option.selected {
+    background: rgba(196, 30, 58, 0.1);
+    border-color: var(--primary);
+    box-shadow: 0 0 15px rgba(196, 30, 58, 0.2);
+}
+
+.payment-option input {
+    position: absolute;
+    opacity: 0;
+}
+
+.payment-option-icon {
+    font-size: 1.5rem;
+}
+
+.payment-option-name {
+    font-size: 0.8rem;
     font-weight: 700;
     text-transform: uppercase;
+}
+
+/* PIX BOX */
+.pix-box {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px dashed var(--primary);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    margin-top: 15px;
+}
+
+.pix-title {
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: var(--primary);
+}
+
+.pix-key {
+    background: var(--bg-dark);
+    padding: 10px;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 0.9rem;
+    word-break: break-all;
+    margin-bottom: 15px;
+    user-select: all;
+}
+
+/* TRACKING */
+.status-tracker {
+    max-width: 500px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+.status-card {
+    background: var(--bg-card);
+    border-radius: var(--border-radius-lg);
+    border: 1px solid var(--border-color);
+    padding: 30px;
+    text-align: center;
+}
+
+.status-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+}
+
+.status-label {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    color: var(--primary);
+}
+
+.order-id-label {
+    background: var(--bg-input);
+    padding: 5px 15px;
+    border-radius: 20px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    display: inline-block;
+    margin-bottom: 30px;
+}
+
+.tracking-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    text-align: left;
+}
+
+.tracking-step {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    opacity: 0.3;
+    transition: 0.3s;
+}
+
+.tracking-step.active {
+    opacity: 1;
+}
+
+.step-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--text-muted);
+}
+
+.tracking-step.active .step-dot {
+    background: var(--primary);
+    box-shadow: 0 0 10px var(--primary);
+}
+
+.step-info b {
+    display: block;
+    font-size: 1rem;
+}
+
+.step-info span {
+    font-size: 0.8rem;
+    color: var(--text-muted);
 }
 
 .badge-pending {

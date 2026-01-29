@@ -178,19 +178,33 @@ async function confirmOrder() {
   const name = document.getElementById('customerName').value.trim();
   const phone = document.getElementById('customerPhone').value.trim();
   const address = document.getElementById('customerAddress').value.trim();
-  if (!name || !phone || !address || !selectedPayment) { showToast('Preencha os campos e selecione pagamento', 'error'); return; }
+  const complemento = document.getElementById('customerComplement').value.trim();
+  const payment = selectedPayment;
+
+  if (!name || !phone || !address || !payment) {
+    showToast('Por favor, preencha nome, telefone, endereço e pagamento!', 'error');
+    return;
+  }
+
+  // Pergunta se as informações estão corretas (Nova Requisicao)
+  const confirmData = confirm(`Confirme seus dados:\n\n👤 Nome: ${name}\n📞 WhatsApp: ${phone}\n📍 Endereço: ${address}${complemento ? '\n🏢 Complemento: ' + complemento : ''}\n💳 Pagamento: ${payment.toUpperCase()}\n\nAs informações estão corretas?`);
+
+  if (!confirmData) return;
+
   const btn = document.getElementById('confirmOrderBtn');
   btn.disabled = true;
   btn.textContent = 'Enviando...';
+
   const orderData = {
-    cliente: { nome: name, telefone: phone, endereco: address, complemento: document.getElementById('customerComplement').value },
+    cliente: { nome: name, telefone: phone, endereco: address, complemento: complemento },
     itens: cart.map(item => ({ id: item.id, nome: item.nome, preco: item.preco, qtd: item.qty })),
     total: cart.reduce((sum, item) => sum + (item.preco * item.qty), 0),
-    pagamento: selectedPayment,
+    pagamento: payment,
     troco: document.getElementById('trocoValue').value,
     observacoes: document.getElementById('orderNotes').value,
     data: new Date().toISOString()
   };
+
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
@@ -202,22 +216,47 @@ async function confirmOrder() {
       closeCheckout();
       showSuccess(result.orderId, orderData);
       cart = []; updateCart(); saveCartToStorage();
+    } else {
+      showToast('Erro ao processar pedido. Tente novamente.', 'error');
     }
-  } catch (e) { console.error(e); }
-  btn.disabled = false; btn.textContent = 'Confirmar';
+  } catch (e) {
+    console.error(e);
+    showToast('Erro de conexão com o servidor.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Confirmar';
+  }
 }
 
 function showSuccess(oid, odata) {
   document.getElementById('orderNumber').textContent = `#${oid}`;
-  const container = document.getElementById('whatsappBtnContainer');
+
+  // Botão de WhatsApp (Mensagem Detalhada)
+  const whatsappContainer = document.getElementById('whatsappBtnContainer');
   if (config.whatsapp) {
-    const msg = encodeURIComponent(`Olá! NovoPedido #${oid}\nTotal: R$ ${formatPrice(odata.total)}`);
-    container.innerHTML = `<a href="https://wa.me/${config.whatsapp}?text=${msg}" target="_blank" class="btn whatsapp-btn" style="width:100%;">📱 Enviar p/ WhatsApp</a>`;
+    const itensStr = odata.itens.map(i => `- ${i.qtd}x ${i.nome}`).join('%0A');
+    const msg = encodeURIComponent(`🍱 *NOVO PEDIDO: #${oid}*\n\n` +
+      `👤 *Cliente:* ${odata.cliente.nome}\n` +
+      `📞 *Tel:* ${odata.cliente.telefone}\n` +
+      `📍 *Endereço:* ${odata.cliente.endereco}\n` +
+      (odata.cliente.complemento ? `🏢 *Compl:* ${odata.cliente.complemento}\n` : '') +
+      `💳 *Pagamento:* ${odata.pagamento.toUpperCase()}\n` +
+      (odata.troco ? `💵 *Troco para:* R$ ${odata.troco}\n` : '') +
+      `📝 *Obs:* ${odata.observacoes || 'Nenhuma'}\n\n` +
+      `🛒 *Itens:*\n${odata.itens.map(i => `- ${i.qtd}x ${i.nome}`).join('\n')}\n\n` +
+      `💰 *Total: R$ ${formatPrice(odata.total)}*`);
+
+    whatsappContainer.innerHTML = `<a href="https://wa.me/55${config.whatsapp.replace(/\D/g, '')}?text=${msg}" target="_blank" class="btn btn-success" style="width:100%; gap: 10px;">Enviar Pedido para WhatsApp ✅</a>`;
   }
+
+  // Botão de Status do Pedido (Novo)
+  const trackingContainer = document.getElementById('trackingBtnContainer');
+  trackingContainer.innerHTML = `<a href="status.html?id=${oid}" class="btn btn-accent" style="width:100%;">🚀 Acompanhar Status em Tempo Real</a>`;
+
   successModal.classList.add('active');
 }
 
-function closeSuccessModal() { successModal.classList.remove('active'); location.reload(); }
+function closeSuccessModal() { successModal.classList.remove('active'); }
 function formatPrice(v) { return Number(v).toFixed(2).replace('.', ','); }
 function hideLoader() { loader.style.opacity = '0'; setTimeout(() => loader.style.display = 'none', 300); }
 function showToast(m, t) {

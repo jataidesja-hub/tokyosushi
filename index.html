@@ -10,13 +10,13 @@
   <title>Tokyo Sushi - Delivery</title>
 
   <!-- PWA Manifest -->
-  <link rel="manifest" href="manifest.json?v=1.4">
-  <link rel="apple-touch-icon" href="assets/icon-192.png?v=1.4">
+  <link rel="manifest" href="manifest.json?v=1.6">
+  <link rel="apple-touch-icon" href="assets/icon-192.png?v=1.6">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=1.4">
+  <link rel="stylesheet" href="css/styles.css?v=1.6">
   <link rel="icon" type="image/png" href="assets/logo.png">
 </head>
 
@@ -155,9 +155,11 @@
         <h2 style="margin-bottom:15px;">Pedido Confirmado!</h2>
         <p style="color:var(--text-secondary);margin-bottom:10px;">Pedido <strong id="orderNumber">#0000</strong>
           recebido!</p>
-        <p style="color:var(--text-secondary);margin-bottom:30px;">Acompanhe o status do seu pedido.</p>
+        <p style="color:var(--text-secondary);margin-bottom:30px;">Acompanhe o status do seu pedido em tempo real.</p>
+        <div id="trackingBtnContainer" style="margin-bottom: 20px;"></div>
         <div id="whatsappBtnContainer"></div>
-        <button class="btn btn-secondary" style="margin-top:15px;" onclick="closeSuccessModal()">Novo Pedido</button>
+        <button class="btn btn-secondary" style="margin-top:15px; width: 100%;" onclick="closeSuccessModal()">Voltar ao
+          Início</button>
       </div>
     </div>
   </div>
@@ -175,7 +177,7 @@
     </div>
   </div>
 
-  <script src="js/store.js?v=1.5"></script>
+  <script src="js/store.js?v=1.6"></script>
   <script>
     let deferredPrompt;
     const pwaPrompt = document.getElementById('pwa-custom-prompt');
@@ -183,7 +185,7 @@
     // Registrar Service Worker com versão para forçar atualização no mobile
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js?v=1.5').then(reg => {
+        navigator.serviceWorker.register('sw.js?v=1.6').then(reg => {
           reg.onupdatefound = () => {
             const installingWorker = reg.installing;
             installingWorker.onstatechange = () => {

@@ -1,9 +1,10 @@
-const CACHE_NAME = 'tokyo-sushi-v2'; // Incrementado para forçar refresh
+const CACHE_NAME = 'tokyo-sushi-v3';
 const ASSETS = [
     '/',
     '/index.html',
-    '/css/styles.css?v=1.3',
-    '/js/store.js?v=1.3',
+    '/status.html',
+    '/css/styles.css?v=1.6',
+    '/js/store.js?v=1.6',
     '/assets/logo.png',
     '/manifest.json'
 ];
