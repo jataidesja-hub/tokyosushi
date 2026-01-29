@@ -23,13 +23,21 @@ const toastContainer = document.getElementById('toastContainer');
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
+  console.log('Iniciando Tokyo Sushi Store...');
   try {
-    await Promise.all([loadConfig(), loadProducts()]);
+    // Tentar carregar configurações e produtos
+    await Promise.all([
+      loadConfig().catch(e => console.error('Erro ao carregar configurações:', e)),
+      loadProducts().catch(e => console.error('Erro ao carregar produtos:', e))
+    ]);
+
     setupPaymentOptions();
     loadCartFromStorage();
-    hideLoader();
+    console.log('Inicialização concluída com sucesso.');
   } catch (error) {
-    console.error('Erro na inicialização:', error);
+    console.error('Erro geral na inicialização:', error);
+  } finally {
+    // Garantir que o loader suma independente do que aconteça
     hideLoader();
   }
 }
@@ -46,10 +54,14 @@ async function loadConfig() {
 async function loadProducts() {
   const res = await fetch(`${API_URL}?action=getProducts`);
   const data = await res.json();
-  if (data.success) {
+  if (data && data.success && Array.isArray(data.products)) {
     products = data.products.filter(p => p.ativo);
     renderCategories();
     renderProducts();
+    console.log(`${products.length} produtos carregados.`);
+  } else {
+    console.warn('Nenhum produto encontrado ou erro na API.');
+    renderProducts(); // Mostrará estado vazio
   }
 }
 

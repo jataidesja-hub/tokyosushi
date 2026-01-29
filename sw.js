@@ -1,12 +1,12 @@
-const CACHE_NAME = 'tokyo-sushi-v3';
+const CACHE_NAME = 'tokyo-sushi-v5';
 const ASSETS = [
-    '/',
-    '/index.html',
-    '/status.html',
-    '/css/styles.css?v=1.6',
-    '/js/store.js?v=1.6',
-    '/assets/logo.png',
-    '/manifest.json'
+    './',
+    './index.html',
+    './status.html',
+    './css/styles.css?v=1.7',
+    './js/store.js?v=1.7',
+    './assets/logo.png',
+    './manifest.json'
 ];
 
 self.addEventListener('install', event => {
