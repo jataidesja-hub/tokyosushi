@@ -1,10 +1,10 @@
-const CACHE_NAME = 'tokyo-sushi-v6';
+const CACHE_NAME = 'tokyo-sushi-v7';
 const ASSETS = [
     './',
     './index.html',
     './status.html',
-    './css/styles.css',
-    './js/store.js',
+    './css/styles.css?v=2.1',
+    './js/store.js?v=2.1',
     './assets/logo.png',
     './manifest.json'
 ];

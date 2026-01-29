@@ -1,4 +1,4 @@
-// ===== TOKYO SUSHI - STORE JS v2.0 =====
+// ===== TOKYO SUSHI - STORE JS v2.1 =====
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbxlT9SG2YyQ4ZphlLkNP4H_osQ1R8m4XEiBDnH8t-M4JGXAw5PqOf-m27wod7CTLub-/exec';
 let config = { whatsapp: '', pixKey: '' };
@@ -23,7 +23,7 @@ const toastContainer = document.getElementById('toastContainer');
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
-  console.log('--- Tokyo Sushi: Iniciando ---');
+  console.log('--- Tokyo Sushi: Iniciando v2.1 ---');
   try {
     const ts = Date.now();
     await Promise.all([
@@ -217,22 +217,29 @@ async function confirmOrder() {
   };
 
   try {
+    console.log('Enviando pedido ao servidor...');
     const res = await fetch(API_URL, {
       method: 'POST',
+      mode: 'cors',
+      cache: 'no-cache',
+      redirect: 'follow',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'createOrder', data: orderData })
     });
+
+    if (!res.ok) throw new Error('Falha na resposta do servidor');
+
     const result = await res.json();
     if (result.success) {
       closeCheckout();
       showSuccess(result.orderId, orderData);
       cart = []; updateCart(); saveCartToStorage();
     } else {
-      showToast('Erro ao processar pedido. Tente novamente.', 'error');
+      showToast('Erro no servidor: ' + (result.error || 'Tente novamente'), 'error');
     }
   } catch (e) {
-    console.error(e);
-    showToast('Erro de conexão com o servidor.', 'error');
+    console.error('Erro de Fetch:', e);
+    showToast('Erro de conexão: Verifique seu sinal de internet.', 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Confirmar';
