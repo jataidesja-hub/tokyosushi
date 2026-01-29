@@ -10,13 +10,13 @@
   <title>Tokyo Sushi - Delivery</title>
 
   <!-- PWA Manifest -->
-  <link rel="manifest" href="manifest.json?v=1.7">
-  <link rel="apple-touch-icon" href="assets/icon-192.png?v=1.7">
+  <link rel="manifest" href="manifest.json?v=2.0">
+  <link rel="apple-touch-icon" href="assets/icon-192.png?v=2.0">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=1.7">
+  <link rel="stylesheet" href="css/styles.css?v=2.0">
   <link rel="icon" type="image/png" href="assets/logo.png">
 </head>
 
@@ -26,6 +26,16 @@
     <p class="loader-text">Carregando cardápio...</p>
   </div>
   <div class="toast-container" id="toastContainer"></div>
+  <script>
+    // KILL LOADER DE EMERGENCIA (Se demorar mais de 10s o app força a abertura)
+    setTimeout(() => {
+      const loader = document.getElementById('loader');
+      if (loader && loader.style.display !== 'none') {
+        loader.style.opacity = '0';
+        setTimeout(() => loader.style.display = 'none', 300);
+      }
+    }, 10000);
+  </script>
 
   <header class="header">
     <div class="container">
@@ -177,25 +187,15 @@
     </div>
   </div>
 
-  <script src="js/store.js?v=1.7"></script>
+  <script src="js/store.js?v=2.0"></script>
   <script>
     let deferredPrompt;
     const pwaPrompt = document.getElementById('pwa-custom-prompt');
 
-    // Registrar Service Worker com versão para forçar atualização no mobile
+    // Registrar Service Worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js?v=1.7').then(reg => {
-          reg.onupdatefound = () => {
-            const installingWorker = reg.installing;
-            installingWorker.onstatechange = () => {
-              if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // Forçar reload quando houver atualização crítica
-                location.reload();
-              }
-            };
-          };
-        }).catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('sw.js').catch(err => console.error('SW Error:', err));
       });
     }
 
@@ -203,11 +203,8 @@
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
-
-      // Mostrar o link no header e o prompt de rodapé
       const headerLink = document.getElementById('install-link-header');
       if (headerLink) headerLink.style.display = 'block';
-
       if (!localStorage.getItem('pwa_dismissed')) {
         pwaPrompt.style.display = 'flex';
       }
@@ -216,7 +213,7 @@
     function installPWA() {
       if (deferredPrompt) {
         deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choiceResult) => {
+        deferredPrompt.userChoice.then(() => {
           pwaPrompt.style.display = 'none';
           const headerLink = document.getElementById('install-link-header');
           if (headerLink) headerLink.style.display = 'none';

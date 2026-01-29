@@ -1,9 +1,11 @@
 {
     "name": "Tokyo Sushi Delivery",
     "short_name": "Tokyo Sushi",
+    "id": "tokyo-sushi-pwa-v2",
     "description": "O melhor sushi da região direto no seu celular.",
-    "start_url": "index.html",
+    "start_url": "./",
     "display": "standalone",
+    "orientation": "portrait",
     "background_color": "#1a1a2e",
     "theme_color": "#c41e3a",
     "icons": [

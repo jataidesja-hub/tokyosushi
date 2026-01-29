@@ -1,4 +1,4 @@
-// ===== TOKYO SUSHI - STORE JS =====
+// ===== TOKYO SUSHI - STORE JS v2.0 =====
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbxlT9SG2YyQ4ZphlLkNP4H_osQ1R8m4XEiBDnH8t-M4JGXAw5PqOf-m27wod7CTLub-/exec';
 let config = { whatsapp: '', pixKey: '' };
@@ -23,45 +23,45 @@ const toastContainer = document.getElementById('toastContainer');
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
-  console.log('Iniciando Tokyo Sushi Store...');
+  console.log('--- Tokyo Sushi: Iniciando ---');
   try {
-    // Tentar carregar configurações e produtos
+    const ts = Date.now();
     await Promise.all([
-      loadConfig().catch(e => console.error('Erro ao carregar configurações:', e)),
-      loadProducts().catch(e => console.error('Erro ao carregar produtos:', e))
+      loadConfig(ts).catch(e => console.error('Erro Config:', e)),
+      loadProducts(ts).catch(e => console.error('Erro Produtos:', e))
     ]);
 
     setupPaymentOptions();
     loadCartFromStorage();
-    console.log('Inicialização concluída com sucesso.');
+    console.log('--- Tokyo Sushi: Pronto ---');
   } catch (error) {
-    console.error('Erro geral na inicialização:', error);
+    console.error('Crash na inicialização:', error);
   } finally {
-    // Garantir que o loader suma independente do que aconteça
     hideLoader();
   }
 }
 
-async function loadConfig() {
-  const res = await fetch(`${API_URL}?action=getConfig`);
+async function loadConfig(ts) {
+  const res = await fetch(`${API_URL}?action=getConfig&_=${ts}`);
   const data = await res.json();
-  if (data.success) {
+  if (data && data.success && data.config) {
     config = data.config;
-    document.getElementById('pixKey').textContent = config.pixKey || 'Não configurado';
+    const pixEl = document.getElementById('pixKey');
+    if (pixEl) pixEl.textContent = config.pixKey || 'Não configurado';
   }
 }
 
-async function loadProducts() {
-  const res = await fetch(`${API_URL}?action=getProducts`);
+async function loadProducts(ts) {
+  const res = await fetch(`${API_URL}?action=getProducts&_=${ts}`);
   const data = await res.json();
   if (data && data.success && Array.isArray(data.products)) {
     products = data.products.filter(p => p.ativo);
     renderCategories();
     renderProducts();
-    console.log(`${products.length} produtos carregados.`);
+    console.log(`${products.length} itens carregados.`);
   } else {
-    console.warn('Nenhum produto encontrado ou erro na API.');
-    renderProducts(); // Mostrará estado vazio
+    console.warn('API de produtos falhou ou retornou vazio.');
+    renderProducts();
   }
 }
 
@@ -198,7 +198,6 @@ async function confirmOrder() {
     return;
   }
 
-  // Pergunta se as informações estão corretas (Nova Requisicao)
   const confirmData = confirm(`Confirme seus dados:\n\n👤 Nome: ${name}\n📞 WhatsApp: ${phone}\n📍 Endereço: ${address}${complemento ? '\n🏢 Complemento: ' + complemento : ''}\n💳 Pagamento: ${payment.toUpperCase()}\n\nAs informações estão corretas?`);
 
   if (!confirmData) return;
@@ -243,10 +242,8 @@ async function confirmOrder() {
 function showSuccess(oid, odata) {
   document.getElementById('orderNumber').textContent = `#${oid}`;
 
-  // Botão de WhatsApp (Mensagem Detalhada)
   const whatsappContainer = document.getElementById('whatsappBtnContainer');
   if (config.whatsapp) {
-    const itensStr = odata.itens.map(i => `- ${i.qtd}x ${i.nome}`).join('%0A');
     const msg = encodeURIComponent(`🍱 *NOVO PEDIDO: #${oid}*\n\n` +
       `👤 *Cliente:* ${odata.cliente.nome}\n` +
       `📞 *Tel:* ${odata.cliente.telefone}\n` +
@@ -255,13 +252,12 @@ function showSuccess(oid, odata) {
       `💳 *Pagamento:* ${odata.pagamento.toUpperCase()}\n` +
       (odata.troco ? `💵 *Troco para:* R$ ${odata.troco}\n` : '') +
       `📝 *Obs:* ${odata.observacoes || 'Nenhuma'}\n\n` +
-      `🛒 *Itens:*\n${odata.itens.map(i => `- ${i.qtd}x ${i.nome}`).join('\n')}\n\n` +
+      `🛒 *Itens:*\n${odata.itens.map(i => `- ${i.qty}x ${i.nome}`).join('\n')}\n\n` +
       `💰 *Total: R$ ${formatPrice(odata.total)}*`);
 
     whatsappContainer.innerHTML = `<a href="https://wa.me/55${config.whatsapp.replace(/\D/g, '')}?text=${msg}" target="_blank" class="btn btn-success" style="width:100%; gap: 10px;">Enviar Pedido para WhatsApp ✅</a>`;
   }
 
-  // Botão de Status do Pedido (Novo)
   const trackingContainer = document.getElementById('trackingBtnContainer');
   trackingContainer.innerHTML = `<a href="status.html?id=${oid}" class="btn btn-accent" style="width:100%;">🚀 Acompanhar Status em Tempo Real</a>`;
 
@@ -270,7 +266,11 @@ function showSuccess(oid, odata) {
 
 function closeSuccessModal() { successModal.classList.remove('active'); }
 function formatPrice(v) { return Number(v).toFixed(2).replace('.', ','); }
-function hideLoader() { loader.style.opacity = '0'; setTimeout(() => loader.style.display = 'none', 300); }
+function hideLoader() {
+  if (!loader) return;
+  loader.style.opacity = '0';
+  setTimeout(() => loader.style.display = 'none', 300);
+}
 function showToast(m, t) {
   const toast = document.createElement('div'); toast.className = `toast toast-${t}`; toast.innerHTML = `<span>${m}</span>`;
   toastContainer.appendChild(toast);

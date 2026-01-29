@@ -1,10 +1,10 @@
-const CACHE_NAME = 'tokyo-sushi-v5';
+const CACHE_NAME = 'tokyo-sushi-v6';
 const ASSETS = [
     './',
     './index.html',
     './status.html',
-    './css/styles.css?v=1.7',
-    './js/store.js?v=1.7',
+    './css/styles.css',
+    './js/store.js',
     './assets/logo.png',
     './manifest.json'
 ];
@@ -30,11 +30,25 @@ self.addEventListener('activate', event => {
     return self.clients.claim();
 });
 
+// Estratégia Network First: Tenta a rede primeiro, se falhar ou demorar, usa o cache.
 self.addEventListener('fetch', event => {
+    // Apenas para nossos arquivos locais e GET
+    if (event.request.method !== 'GET') return;
+
     event.respondWith(
-        caches.match(event.request).then(response => {
-            return response || fetch(event.request);
-        })
+        fetch(event.request)
+            .then(response => {
+                // Se a rede respondeu, atualiza o cache e retorna
+                const clone = response.clone();
+                caches.open(CACHE_NAME).then(cache => {
+                    cache.put(event.request, clone);
+                });
+                return response;
+            })
+            .catch(() => {
+                // Se a rede falhar, busca no cache
+                return caches.match(event.request);
+            })
     );
 });
 
