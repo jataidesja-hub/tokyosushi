@@ -1,17 +1,14 @@
 // ===== TOKYO SUSHI - ADMIN JS =====
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbxlT9SG2YyQ4ZphlLkNP4H_osQ1R8m4XEiBDnH8t-M4JGXAw5PqOf-m27wod7CTLub-/exec';
-
 let products = [];
 let orders = [];
 let config = {};
 let pendingImageData = null;
 
-// DOM
 const loader = document.getElementById('loader');
 const toastContainer = document.getElementById('toastContainer');
 
-// Init
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
@@ -27,11 +24,9 @@ async function loadAll() {
         updateDashboard();
     } catch (e) {
         console.error('Erro ao carregar dados:', e);
-        showToast('Erro ao carregar dados', 'error');
     }
 }
 
-// Navigation
 function setupNavigation() {
     document.querySelectorAll('.admin-menu-link').forEach(link => {
         link.addEventListener('click', (e) => {
@@ -45,51 +40,37 @@ function setupNavigation() {
     });
 }
 
-// API
 async function loadConfig() {
-    try {
-        const res = await fetch(`${API_URL}?action=getConfig`);
-        const data = await res.json();
-        if (data.success) {
-            config = data.config;
-            document.getElementById('configStoreName').value = config.storeName || 'Tokyo Sushi';
-            document.getElementById('configWhatsapp').value = config.whatsapp || '';
-            document.getElementById('configPixKey').value = config.pixKey || '';
-            document.getElementById('configAddress').value = config.address || '';
-        }
-    } catch (e) {
-        console.error('Erro ao carregar config:', e);
+    const res = await fetch(`${API_URL}?action=getConfig`);
+    const data = await res.json();
+    if (data.success) {
+        config = data.config;
+        document.getElementById('configStoreName').value = config.storeName || 'Tokyo Sushi';
+        document.getElementById('configWhatsapp').value = config.whatsapp || '';
+        document.getElementById('configPixKey').value = config.pixKey || '';
+        document.getElementById('configAddress').value = config.address || '';
     }
 }
 
 async function loadProducts() {
-    try {
-        const res = await fetch(`${API_URL}?action=getProducts`);
-        const data = await res.json();
-        if (data.success) {
-            products = data.products;
-            renderProductsTable();
-        }
-    } catch (e) {
-        console.error('Erro ao carregar produtos:', e);
+    const res = await fetch(`${API_URL}?action=getProducts`);
+    const data = await res.json();
+    if (data.success) {
+        products = data.products;
+        renderProductsTable();
     }
 }
 
 async function loadOrders() {
-    try {
-        const res = await fetch(`${API_URL}?action=getOrders`);
-        const data = await res.json();
-        if (data.success) {
-            orders = data.orders;
-            renderOrders();
-            renderRecentOrders();
-        }
-    } catch (e) {
-        console.error('Erro ao carregar pedidos:', e);
+    const res = await fetch(`${API_URL}?action=getOrders`);
+    const data = await res.json();
+    if (data.success) {
+        orders = data.orders;
+        renderOrders();
+        renderRecentOrders();
     }
 }
 
-// Dashboard
 function updateDashboard() {
     const today = new Date().toDateString();
     const todayOrders = orders.filter(o => new Date(o.data).toDateString() === today);
@@ -97,7 +78,7 @@ function updateDashboard() {
     const todaySales = todayOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
 
     document.getElementById('statOrdersToday').textContent = todayOrders.length;
-    document.getElementById('statSalesToday').textContent = `R$ ${todaySales.toFixed(2).replace('.', ',')}`;
+    document.getElementById('statSalesToday').textContent = `R$ ${formatPrice(todaySales)}`;
     document.getElementById('statPending').textContent = pending;
     document.getElementById('statProducts').textContent = products.length;
 }
@@ -105,12 +86,10 @@ function updateDashboard() {
 function renderRecentOrders() {
     const recent = orders.slice(0, 5);
     const container = document.getElementById('recentOrders');
-
     if (recent.length === 0) {
         container.innerHTML = '<p style="color:var(--text-secondary);">Nenhum pedido ainda</p>';
         return;
     }
-
     container.innerHTML = recent.map(o => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:15px;border-bottom:1px solid var(--border-color);">
       <div>
@@ -125,13 +104,8 @@ function renderRecentOrders() {
   `).join('');
 }
 
-// Products
 function renderProductsTable() {
     const tbody = document.getElementById('productsTable');
-    if (products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-secondary);">Nenhum produto cadastrado</td></tr>';
-        return;
-    }
     tbody.innerHTML = products.map(p => `
     <tr>
       <td><img src="${p.imagem || 'assets/placeholder.png'}" alt="${p.nome}" onerror="this.src='assets/placeholder.png'"></td>
@@ -147,24 +121,34 @@ function renderProductsTable() {
   `).join('');
 }
 
+function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        pendingImageData = { image: e.target.result, fileName: file.name };
+        document.getElementById('imagePreview').src = e.target.result;
+        document.getElementById('imagePreview').style.display = 'block';
+        document.getElementById('imageUploadContent').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+}
+
 function openProductModal(product = null) {
     document.getElementById('productModalTitle').textContent = product ? 'Editar Produto' : 'Novo Produto';
-    document.getElementById('productId').value = product?.id || '';
-    document.getElementById('productName').value = product?.nome || '';
-    document.getElementById('productDesc').value = product?.descricao || '';
-    document.getElementById('productCategory').value = product?.categoria || '';
-    document.getElementById('productPrice').value = product?.preco || '';
-    document.getElementById('productImage').value = product?.imagem || '';
-    document.getElementById('productActive').checked = product?.ativo !== false;
-    document.getElementById('productFeatured').checked = product?.destaque === true;
+    document.getElementById('productId').value = product ? String(product.id) : '';
+    document.getElementById('productName').value = product ? product.nome : '';
+    document.getElementById('productDesc').value = product ? product.descricao : '';
+    document.getElementById('productCategory').value = product ? product.categoria : '';
+    document.getElementById('productPrice').value = product ? product.preco : '';
+    document.getElementById('productImage').value = product ? product.imagem : '';
+    document.getElementById('productActive').checked = product ? product.ativo : true;
+    document.getElementById('productFeatured').checked = product ? product.destaque : false;
 
-    // Reset image upload
     pendingImageData = null;
     const preview = document.getElementById('imagePreview');
     const content = document.getElementById('imageUploadContent');
-    const fileInput = document.getElementById('productImageFile');
-
-    if (product?.imagem) {
+    if (product && product.imagem) {
         preview.src = product.imagem;
         preview.style.display = 'block';
         content.style.display = 'none';
@@ -172,89 +156,34 @@ function openProductModal(product = null) {
         preview.style.display = 'none';
         content.style.display = 'block';
     }
-    if (fileInput) fileInput.value = '';
-
     document.getElementById('productModal').classList.add('active');
 }
 
 function closeProductModal() {
     document.getElementById('productModal').classList.remove('active');
-    pendingImageData = null;
 }
 
 function editProduct(id) {
-    const product = products.find(p => p.id === id);
+    const product = products.find(p => String(p.id) === String(id));
     if (product) openProductModal(product);
-}
-
-// Handle image upload
-function handleImageUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-        showToast('Por favor, selecione uma imagem', 'error');
-        return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-        showToast('Imagem muito grande. Máximo 5MB', 'error');
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        const imageData = e.target.result;
-        pendingImageData = {
-            image: imageData,
-            fileName: file.name
-        };
-
-        // Show preview
-        const preview = document.getElementById('imagePreview');
-        const content = document.getElementById('imageUploadContent');
-        preview.src = imageData;
-        preview.style.display = 'block';
-        content.style.display = 'none';
-
-        showToast('Imagem carregada!', 'success');
-    };
-    reader.readAsDataURL(file);
-}
-
-async function uploadToDrive(imageData) {
-    try {
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'uploadImage', data: imageData })
-        });
-        const result = await response.json();
-        return result;
-    } catch (e) {
-        return { success: false, error: e.toString() };
-    }
 }
 
 async function saveProduct() {
     const id = document.getElementById('productId').value;
-    let imageUrl = document.getElementById('productImage').value.trim();
+    let imageUrl = document.getElementById('productImage').value;
 
-    // Se tem imagem pendente para upload
     if (pendingImageData) {
-        showToast('Enviando imagem para o Drive...', 'info');
-        const uploadResult = await uploadToDrive(pendingImageData);
-        if (uploadResult.success) {
-            imageUrl = uploadResult.url;
-            showToast('Imagem enviada!', 'success');
-        } else {
-            showToast('Erro ao enviar imagem: ' + uploadResult.error, 'error');
-            return;
-        }
+        showToast('Enviando imagem...', 'info');
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'uploadImage', data: pendingImageData })
+        });
+        const uploadResult = await res.json();
+        if (uploadResult.success) imageUrl = uploadResult.url;
     }
 
     const data = {
-        id: id || Date.now().toString(),
+        id: id || "P" + Date.now(),
         nome: document.getElementById('productName').value.trim(),
         descricao: document.getElementById('productDesc').value.trim(),
         categoria: document.getElementById('productCategory').value.trim(),
@@ -264,54 +193,36 @@ async function saveProduct() {
         destaque: document.getElementById('productFeatured').checked
     };
 
-    if (!data.nome || !data.preco) {
-        showToast('Preencha nome e preço', 'error');
-        return;
-    }
-
-    showToast('Salvando produto...', 'info');
-
-    try {
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: id ? 'updateProduct' : 'createProduct', data })
-        });
-        const result = await res.json();
-        if (result.success) {
-            showToast('Produto salvo!', 'success');
-            closeProductModal();
-            await loadProducts();
-            updateDashboard();
-        } else {
-            showToast('Erro ao salvar: ' + (result.error || ''), 'error');
-        }
-    } catch (e) {
-        console.error('Erro:', e);
-        showToast('Erro de conexão', 'error');
+    showToast('Salvando...', 'info');
+    const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: id ? 'updateProduct' : 'createProduct', data })
+    });
+    const result = await res.json();
+    if (result.success) {
+        showToast('Produto salvo!', 'success');
+        closeProductModal();
+        await loadProducts();
+        updateDashboard();
     }
 }
 
 async function deleteProduct(id) {
-    if (!confirm('Excluir este produto?')) return;
-    try {
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'deleteProduct', data: { id } })
-        });
-        const result = await res.json();
-        if (result.success) {
-            showToast('Produto excluído', 'success');
-            await loadProducts();
-            updateDashboard();
-        }
-    } catch (e) {
-        showToast('Erro', 'error');
+    if (!confirm('Excluir?')) return;
+    const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'deleteProduct', data: { id } })
+    });
+    const result = await res.json();
+    if (result.success) {
+        showToast('Excluído!', 'success');
+        await loadProducts();
+        updateDashboard();
     }
 }
 
-// Orders
 function setupOrderFilters() {
     document.querySelectorAll('#orders .category-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -325,134 +236,69 @@ function setupOrderFilters() {
 function renderOrders(filter = 'all') {
     const filtered = filter === 'all' ? orders : orders.filter(o => o.status === filter);
     const container = document.getElementById('ordersList');
-
     if (filtered.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><h3>Nenhum pedido</h3></div>';
         return;
     }
-
     container.innerHTML = filtered.map(o => `
     <div class="order-card">
       <div class="order-header">
-        <div>
-          <span class="order-id">#${o.id}</span>
-          <span class="order-time">${formatDate(o.data)}</span>
-        </div>
+        <div><span class="order-id">#${o.id}</span><span class="order-time">${formatDate(o.data)}</span></div>
         <span class="badge badge-${getStatusClass(o.status)}">${getStatusLabel(o.status)}</span>
       </div>
       <div class="order-body">
-        <div class="order-customer">
-          <p><strong>Cliente:</strong> ${o.cliente?.nome || '-'}</p>
-          <p><strong>Telefone:</strong> ${o.cliente?.telefone || '-'}</p>
-          <p><strong>Endereço:</strong> ${o.cliente?.endereco || '-'} ${o.cliente?.complemento || ''}</p>
-          <p><strong>Pagamento:</strong> ${getPaymentLabel(o.pagamento)} ${o.troco ? `(Troco: ${o.troco})` : ''}</p>
-          ${o.observacoes ? `<p><strong>Obs:</strong> ${o.observacoes}</p>` : ''}
-        </div>
+        <p><strong>Cliente:</strong> ${o.cliente?.nome || '-'}</p>
+        <p><strong>Telefone:</strong> ${o.cliente?.telefone || '-'}</p>
+        <p><strong>Endereço:</strong> ${o.cliente?.endereco || '-'} ${o.cliente?.complemento || ''}</p>
+        <p><strong>Pagamento:</strong> ${getPaymentLabel(o.pagamento)}</p>
         <div class="order-items-list">
-          ${(o.itens || []).map(i => `
-            <div class="order-item-row">
-              <span>${i.qtd}x ${i.nome}</span>
-              <span>R$ ${formatPrice(i.preco * i.qtd)}</span>
-            </div>
-          `).join('')}
+          ${o.itens.map(i => `<div class="order-item-row"><span>${i.qtd}x ${i.nome}</span><span>R$ ${formatPrice(i.preco * i.qtd)}</span></div>`).join('')}
         </div>
-        <div class="order-total">
-          <span>Total:</span>
-          <span class="order-total-value">R$ ${formatPrice(o.total)}</span>
-        </div>
+        <div class="order-total"><span>Total:</span><span class="order-total-value">R$ ${formatPrice(o.total)}</span></div>
       </div>
       <div class="order-actions">
         ${o.status === 'pendente' ? `<button class="btn btn-primary btn-sm" onclick="updateOrderStatus('${o.id}', 'preparando')">🍳 Preparando</button>` : ''}
         ${o.status === 'preparando' ? `<button class="btn btn-accent btn-sm" onclick="updateOrderStatus('${o.id}', 'saiu')">🛵 Saiu p/ Entrega</button>` : ''}
         ${o.status === 'saiu' ? `<button class="btn btn-success btn-sm" onclick="updateOrderStatus('${o.id}', 'entregue')">✅ Entregue</button>` : ''}
-        ${o.cliente?.telefone ? `<a href="https://wa.me/${o.cliente.telefone.replace(/\\D/g, '')}" target="_blank" class="btn whatsapp-btn btn-sm">WhatsApp</a>` : ''}
+        <a href="https://wa.me/${String(o.cliente?.telefone).replace(/\D/g, '')}" target="_blank" class="btn whatsapp-btn btn-sm">WhatsApp</a>
       </div>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
 async function updateOrderStatus(id, status) {
-    try {
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'updateOrderStatus', data: { id, status } })
-        });
-        const result = await res.json();
-        if (result.success) {
-            showToast('Status atualizado!', 'success');
-            await loadOrders();
-            updateDashboard();
-        }
-    } catch (e) {
-        showToast('Erro', 'error');
-    }
+    const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'updateOrderStatus', data: { id, status } })
+    });
+    await loadOrders();
 }
 
-// Config
 async function saveConfig() {
     const data = {
-        storeName: document.getElementById('configStoreName').value.trim(),
-        whatsapp: document.getElementById('configWhatsapp').value.trim(),
-        pixKey: document.getElementById('configPixKey').value.trim(),
-        address: document.getElementById('configAddress').value.trim()
+        storeName: document.getElementById('configStoreName').value,
+        whatsapp: document.getElementById('configWhatsapp').value,
+        pixKey: document.getElementById('configPixKey').value,
+        address: document.getElementById('configAddress').value
     };
-
-    showToast('Salvando...', 'info');
-
-    try {
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'saveConfig', data })
-        });
-        const result = await res.json();
-        if (result.success) {
-            showToast('Configurações salvas!', 'success');
-            config = data;
-        } else {
-            showToast('Erro ao salvar', 'error');
-        }
-    } catch (e) {
-        showToast('Erro de conexão', 'error');
-    }
+    await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'saveConfig', data })
+    });
+    showToast('Configurações salvas!', 'success');
 }
 
-// Helpers
-function getStatusClass(status) {
-    const map = { pendente: 'pending', preparando: 'preparing', saiu: 'delivery', entregue: 'delivered', cancelado: 'cancelled' };
-    return map[status] || 'pending';
-}
-
-function getStatusLabel(status) {
-    const map = { pendente: 'Pendente', preparando: 'Preparando', saiu: 'Saiu p/ Entrega', entregue: 'Entregue', cancelado: 'Cancelado' };
-    return map[status] || status;
-}
-
-function getPaymentLabel(payment) {
-    const map = { pix: 'PIX', dinheiro: 'Dinheiro', cartao_credito: 'Cartão Crédito', cartao_debito: 'Cartão Débito' };
-    return map[payment] || payment;
-}
-
-function formatPrice(v) {
-    return Number(v || 0).toFixed(2).replace('.', ',');
-}
-
-function formatDate(d) {
-    if (!d) return '-';
-    const date = new Date(d);
-    return date.toLocaleString('pt-BR');
-}
-
-function hideLoader() {
-    loader.style.opacity = '0';
-    setTimeout(() => loader.style.display = 'none', 300);
-}
-
-function showToast(msg, type = 'info') {
+function getStatusClass(s) { const map = { pendente: 'pending', preparando: 'preparing', saiu: 'delivery', entregue: 'delivered' }; return map[s] || 'pending'; }
+function getStatusLabel(s) { const map = { pendente: 'Pendente', preparando: 'Preparando', saiu: 'Saiu', entregue: 'Entregue' }; return map[s] || s; }
+function getPaymentLabel(p) { const map = { pix: 'PIX', dinheiro: 'Dinheiro', cartao_credito: 'Crédito', cartao_debito: 'Débito' }; return map[p] || p; }
+function formatPrice(v) { return Number(v || 0).toFixed(2).replace('.', ','); }
+function formatDate(d) { return d ? new Date(d).toLocaleString('pt-BR') : '-'; }
+function hideLoader() { loader.style.opacity = '0'; setTimeout(() => loader.style.display = 'none', 300); }
+function showToast(m, t = 'info') {
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `<span>${msg}</span>`;
+    toast.className = `toast toast-${t}`;
+    toast.innerHTML = `<span>${m}</span>`;
     toastContainer.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
 }

@@ -1,384 +1,156 @@
-// ===== TOKYO SUSHI - GOOGLE APPS SCRIPT =====
-// Cole este código no Google Apps Script (script.google.com)
-
-// ID da planilha
+// ===== TOKYO SUSHI - BACKEND COMPLETO E DEFINITIVO =====
 const SPREADSHEET_ID = '1ax-bknAR_532sAoN0pDTkGar5VML_m-TO9GDvc-xCIE';
-
-// ID da pasta do Google Drive onde as imagens serão salvas
-// IMPORTANTE: A pasta DEVE estar com compartilhamento "Qualquer pessoa com o link pode ler"
 const GOOGLE_DRIVE_FOLDER_ID = '1HUV6HOm14L9qRHF_id3-NtyFxuapOoOs'; 
 
-// Nomes das abas
-const SHEETS = {
-  PRODUCTS: 'Produtos',
-  ORDERS: 'Pedidos',
-  CONFIG: 'Config'
+const SHEETS = { 
+  PRODUCTS: 'Produtos', 
+  ORDERS: 'Pedidos', 
+  CONFIG: 'Config' 
 };
 
-// Função para processar requisições GET
 function doGet(e) {
   const action = e.parameter.action;
-  let result;
-  
+  let result = { success: false, error: 'Ação inválida' };
   try {
-    switch(action) {
-      case 'getProducts':
-        result = getProducts();
-        break;
-      case 'getOrders':
-        result = getOrders();
-        break;
-      case 'getConfig':
-        result = getConfig();
-        break;
-      default:
-        result = { success: false, error: 'Ação inválida' };
-    }
-  } catch(error) {
-    result = { success: false, error: error.toString() };
-  }
-  
-  return ContentService
-    .createTextOutput(JSON.stringify(result))
-    .setMimeType(ContentService.MimeType.JSON);
+    if (action === 'getProducts') result = getProducts();
+    else if (action === 'getOrders') result = getOrders();
+    else if (action === 'getConfig') result = getConfig();
+  } catch(err) { result.error = err.toString(); }
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
 }
 
-// Função para processar requisições POST
 function doPost(e) {
-  let result;
-  
+  let result = { success: false, error: 'Ação POST inválida' };
   try {
     const body = JSON.parse(e.postData.contents);
     const action = body.action;
     const data = body.data;
     
-    switch(action) {
-      case 'createProduct':
-        result = createProduct(data);
-        break;
-      case 'updateProduct':
-        result = updateProduct(data);
-        break;
-      case 'deleteProduct':
-        result = deleteProduct(data);
-        break;
-      case 'createOrder':
-        result = createOrder(data);
-        break;
-      case 'updateOrderStatus':
-        result = updateOrderStatus(data);
-        break;
-      case 'saveConfig':
-        result = saveConfig(data);
-        break;
-      case 'uploadImage':
-        result = uploadImageToDrive(data);
-        break;
-      default:
-        result = { success: false, error: 'Ação inválida' };
+    if (action === 'uploadImage') {
+      const contentType = data.image.match(/data:([^;]+);/)[1];
+      const base64Data = data.image.split(',')[1];
+      const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), contentType, data.fileName || 'produto.jpg');
+      const file = DriveApp.getFolderById(GOOGLE_DRIVE_FOLDER_ID).createFile(blob);
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      // Link direto de visualização
+      const imageUrl = "https://drive.google.com/uc?export=view&id=" + file.getId();
+      return ContentService.createTextOutput(JSON.stringify({ success: true, url: imageUrl })).setMimeType(ContentService.MimeType.JSON);
     }
+    
+    if (action === 'createProduct') result = createProduct(data);
+    else if (action === 'updateProduct') result = updateProduct(data);
+    else if (action === 'deleteProduct') result = deleteProduct(data);
+    else if (action === 'createOrder') result = createOrder(data);
+    else if (action === 'updateOrderStatus') result = updateOrderStatus(data);
+    else if (action === 'saveConfig') result = saveConfig(data);
+    
   } catch(error) {
     result = { success: false, error: error.toString() };
   }
-  
-  return ContentService
-    .createTextOutput(JSON.stringify(result))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
 }
 
-// Função para fazer upload para o Google Drive
-function uploadImageToDrive(data) {
-  try {
-    const folder = DriveApp.getFolderById(GOOGLE_DRIVE_FOLDER_ID);
-    
-    // Decodifica a imagem base64
-    const contentType = data.image.match(/data:([^;]+);/)[1];
-    const base64Data = data.image.split(',')[1];
-    const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), contentType, data.fileName || 'produto.jpg');
-    
-    // Cria o arquivo na pasta
-    const file = folder.createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    
-    // Retorna a URL direta para visualização
-    const fileId = file.getId();
-    const imageUrl = `https://lh3.googleusercontent.com/u/0/d/${fileId}`; // Link direto que funciona em sites
-    
-    return { success: true, url: imageUrl };
-  } catch (error) {
-    return { success: false, error: "Erro no Drive: " + error.toString() };
-  }
-}
-
-// ===== SETUP =====
-function setup() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  
-  // Criar aba Produtos
-  let productsSheet = ss.getSheetByName(SHEETS.PRODUCTS);
-  if (!productsSheet) {
-    productsSheet = ss.insertSheet(SHEETS.PRODUCTS);
-    productsSheet.appendRow(['ID', 'Nome', 'Descrição', 'Categoria', 'Preço', 'Imagem', 'Ativo', 'Destaque']);
-  }
-  
-  // Criar aba Pedidos
-  let ordersSheet = ss.getSheetByName(SHEETS.ORDERS);
-  if (!ordersSheet) {
-    ordersSheet = ss.insertSheet(SHEETS.ORDERS);
-    ordersSheet.appendRow(['ID', 'Data', 'Cliente', 'Telefone', 'Endereço', 'Complemento', 'Itens', 'Total', 'Pagamento', 'Troco', 'Observações', 'Status']);
-  }
-  
-  // Criar aba Config
-  let configSheet = ss.getSheetByName(SHEETS.CONFIG);
-  if (!configSheet) {
-    configSheet = ss.insertSheet(SHEETS.CONFIG);
-    configSheet.appendRow(['Chave', 'Valor']);
-    configSheet.appendRow(['storeName', 'Tokyo Sushi']);
-    configSheet.appendRow(['whatsapp', '']);
-    configSheet.appendRow(['pixKey', '']);
-    configSheet.appendRow(['address', '']);
-  }
-  
-  Logger.log('Setup concluído!');
-}
-
-// ===== PRODUTOS =====
 function getProducts() {
-  try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(SHEETS.PRODUCTS);
-    const data = sheet.getDataRange().getValues();
-    
-    const products = [];
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (row[0]) {
-        products.push({
-          id: row[0].toString(),
-          nome: row[1],
-          descricao: row[2],
-          categoria: row[3],
-          preco: parseFloat(row[4]) || 0,
-          imagem: row[5],
-          ativo: row[6] === true || row[6] === 'true' || row[6] === 'TRUE',
-          destaque: row[7] === true || row[7] === 'true' || row[7] === 'TRUE'
-        });
-      }
-    }
-    
-    return { success: true, products };
-  } catch(error) {
-    return { success: false, error: error.toString() };
-  }
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEETS.PRODUCTS);
+  const data = sheet.getDataRange().getValues();
+  const products = data.slice(1).map(r => ({
+    id: String(r[0]), nome: r[1], descricao: r[2], categoria: r[3], preco: r[4], imagem: r[5], ativo: r[6], destaque: r[7]
+  }));
+  return { success: true, products: products };
 }
 
 function createProduct(data) {
-  try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(SHEETS.PRODUCTS);
-    
-    sheet.appendRow([
-      data.id || Date.now().toString(),
-      data.nome,
-      data.descricao,
-      data.categoria,
-      data.preco,
-      data.imagem,
-      data.ativo,
-      data.destaque
-    ]);
-    
-    return { success: true };
-  } catch(error) {
-    return { success: false, error: error.toString() };
-  }
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEETS.PRODUCTS);
+  sheet.appendRow([String(data.id), data.nome, data.descricao, data.categoria, data.preco, data.imagem, data.ativo, data.destaque]);
+  return { success: true };
 }
 
 function updateProduct(data) {
-  try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(SHEETS.PRODUCTS);
-    const allData = sheet.getDataRange().getValues();
-    
-    for (let i = 1; i < allData.length; i++) {
-      if (allData[i][0].toString() === data.id.toString()) {
-        sheet.getRange(i + 1, 2).setValue(data.nome);
-        sheet.getRange(i + 1, 3).setValue(data.descricao);
-        sheet.getRange(i + 1, 4).setValue(data.categoria);
-        sheet.getRange(i + 1, 5).setValue(data.preco);
-        sheet.getRange(i + 1, 6).setValue(data.imagem);
-        sheet.getRange(i + 1, 7).setValue(data.ativo);
-        sheet.getRange(i + 1, 8).setValue(data.destaque);
-        break;
-      }
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEETS.PRODUCTS);
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(data.id)) {
+      sheet.getRange(i + 1, 1, 1, 8).setValues([[String(data.id), data.nome, data.descricao, data.categoria, data.preco, data.imagem, data.ativo, data.destaque]]);
+      break;
     }
-    
-    return { success: true };
-  } catch(error) {
-    return { success: false, error: error.toString() };
   }
+  return { success: true };
 }
 
 function deleteProduct(data) {
-  try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(SHEETS.PRODUCTS);
-    const allData = sheet.getDataRange().getValues();
-    
-    for (let i = 1; i < allData.length; i++) {
-      if (allData[i][0].toString() === data.id.toString()) {
-        sheet.deleteRow(i + 1);
-        break;
-      }
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEETS.PRODUCTS);
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(data.id)) {
+      sheet.deleteRow(i + 1);
+      break;
     }
-    
-    return { success: true };
-  } catch(error) {
-    return { success: false, error: error.toString() };
   }
+  return { success: true };
 }
 
-// ===== PEDIDOS =====
 function getOrders() {
-  try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(SHEETS.ORDERS);
-    const data = sheet.getDataRange().getValues();
-    
-    const orders = [];
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (row[0]) {
-        let itens = [];
-        try {
-          itens = JSON.parse(row[6]);
-        } catch(e) {}
-        
-        orders.push({
-          id: row[0].toString(),
-          data: row[1],
-          cliente: {
-            nome: row[2],
-            telefone: row[3],
-            endereco: row[4],
-            complemento: row[5]
-          },
-          itens: itens,
-          total: parseFloat(row[7]) || 0,
-          pagamento: row[8],
-          troco: row[9],
-          observacoes: row[10],
-          status: row[11] || 'pendente'
-        });
-      }
-    }
-    
-    orders.sort((a, b) => new Date(b.data) - new Date(a.data));
-    
-    return { success: true, orders };
-  } catch(error) {
-    return { success: false, error: error.toString() };
-  }
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEETS.ORDERS);
+  const data = sheet.getDataRange().getValues();
+  const orders = data.slice(1).map(r => ({
+    id: String(r[0]), data: r[1], cliente: { nome: r[2], telefone: r[3], endereco: r[4], complemento: r[5] },
+    itens: JSON.parse(r[6] || '[]'), total: r[7], pagamento: r[8], troco: r[9], observacoes: r[10], status: r[11]
+  }));
+  return { success: true, orders: orders };
 }
 
 function createOrder(data) {
-  try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(SHEETS.ORDERS);
-    
-    const orderId = generateOrderId();
-    
-    sheet.appendRow([
-      orderId,
-      data.data || new Date().toISOString(),
-      data.cliente?.nome || '',
-      data.cliente?.telefone || '',
-      data.cliente?.endereco || '',
-      data.cliente?.complemento || '',
-      JSON.stringify(data.itens || []),
-      data.total || 0,
-      data.pagamento || '',
-      data.troco || '',
-      data.observacoes || '',
-      'pendente'
-    ]);
-    
-    return { success: true, orderId };
-  } catch(error) {
-    return { success: false, error: error.toString() };
-  }
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEETS.ORDERS);
+  const orderId = "ORD" + new Date().getTime().toString().slice(-6);
+  sheet.appendRow([
+    orderId, data.data, data.cliente.nome, data.cliente.telefone, data.cliente.endereco, 
+    data.cliente.complemento, JSON.stringify(data.itens), data.total, data.pagamento, data.troco, data.observacoes, 'pendente'
+  ]);
+  return { success: true, orderId: orderId };
 }
 
 function updateOrderStatus(data) {
-  try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(SHEETS.ORDERS);
-    const allData = sheet.getDataRange().getValues();
-    
-    for (let i = 1; i < allData.length; i++) {
-      if (allData[i][0].toString() === data.id.toString()) {
-        sheet.getRange(i + 1, 12).setValue(data.status);
-        break;
-      }
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEETS.ORDERS);
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(data.id)) {
+      sheet.getRange(i + 1, 12).setValue(data.status);
+      break;
     }
-    
-    return { success: true };
-  } catch(error) {
-    return { success: false, error: error.toString() };
   }
+  return { success: true };
 }
 
-function generateOrderId() {
-  const date = new Date();
-  const year = date.getFullYear().toString().slice(-2);
-  const month = ('0' + (date.getMonth() + 1)).slice(-2);
-  const day = ('0' + date.getDate()).slice(-2);
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-  return year + month + day + random;
-}
-
-// ===== CONFIG =====
 function getConfig() {
-  try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(SHEETS.CONFIG);
-    const data = sheet.getDataRange().getValues();
-    
-    const config = {};
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0]) {
-        config[data[i][0]] = data[i][1];
-      }
-    }
-    
-    return { success: true, config };
-  } catch(error) {
-    return { success: false, error: error.toString() };
-  }
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEETS.CONFIG);
+  const data = sheet.getDataRange().getValues();
+  const config = {};
+  data.forEach(r => { if(r[0]) config[r[0]] = r[1]; });
+  return { success: true, config: config };
 }
 
 function saveConfig(data) {
-  try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(SHEETS.CONFIG);
-    const allData = sheet.getDataRange().getValues();
-    
-    for (const key in data) {
-      let found = false;
-      for (let i = 1; i < allData.length; i++) {
-        if (allData[i][0] === key) {
-          sheet.getRange(i + 1, 2).setValue(data[key]);
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        sheet.appendRow([key, data[key]]);
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEETS.CONFIG);
+  for (const key in data) {
+    let found = false;
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i][0] === key) {
+        sheet.getRange(i + 1, 2).setValue(data[key]);
+        found = true;
+        break;
       }
     }
-    
-    return { success: true };
-  } catch(error) {
-    return { success: false, error: error.toString() };
+    if (!found) sheet.appendRow([key, data[key]]);
   }
+  return { success: true };
+}
+
+function setup() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  if (!ss.getSheetByName(SHEETS.PRODUCTS)) ss.insertSheet(SHEETS.PRODUCTS).appendRow(['ID', 'Nome', 'Descrição', 'Categoria', 'Preço', 'Imagem', 'Ativo', 'Destaque']);
+  if (!ss.getSheetByName(SHEETS.ORDERS)) ss.insertSheet(SHEETS.ORDERS).appendRow(['ID', 'Data', 'Cliente', 'Telefone', 'Endereço', 'Complemento', 'Itens', 'Total', 'Pagamento', 'Troco', 'Observações', 'Status']);
+  if (!ss.getSheetByName(SHEETS.CONFIG)) ss.insertSheet(SHEETS.CONFIG).appendRow(['Chave', 'Valor']);
+  DriveApp.getFolderById(GOOGLE_DRIVE_FOLDER_ID);
+  Logger.log('Setup concluído!');
 }
