@@ -755,10 +755,8 @@ body::before {
 }
 
 
-/* REMOVER PWA */
-.pwa-banner {
-    display: none !important;
-}
+/* REMOVIDO PWA BANNER ANTIGO */
+
 
 /* MOBILE */
 @media (max-width: 768px) {
