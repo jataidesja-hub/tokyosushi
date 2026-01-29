@@ -1,4 +1,4 @@
-// ===== TOKYO SUSHI - BACKEND COMPLETO E DEFINITIVO =====
+// ===== TOKYO SUSHI - BACKEND SUPREMO (REVISADO E COMPLETO) =====
 const SPREADSHEET_ID = '1ax-bknAR_532sAoN0pDTkGar5VML_m-TO9GDvc-xCIE';
 const GOOGLE_DRIVE_FOLDER_ID = '1HUV6HOm14L9qRHF_id3-NtyFxuapOoOs'; 
 
@@ -20,20 +20,21 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  let result = { success: false, error: 'Ação POST inválida' };
   try {
     const body = JSON.parse(e.postData.contents);
     const action = body.action;
     const data = body.data;
+    let result = { success: false };
     
     if (action === 'uploadImage') {
+      const folder = DriveApp.getFolderById(GOOGLE_DRIVE_FOLDER_ID);
       const contentType = data.image.match(/data:([^;]+);/)[1];
       const base64Data = data.image.split(',')[1];
-      const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), contentType, data.fileName || 'produto.jpg');
-      const file = DriveApp.getFolderById(GOOGLE_DRIVE_FOLDER_ID).createFile(blob);
+      const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), contentType, data.fileName || 'foto.jpg');
+      const file = folder.createFile(blob);
       file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      // Link direto de visualização
-      const imageUrl = "https://drive.google.com/uc?export=view&id=" + file.getId();
+      // NOVO FORMATO DE LINK (MINIATURA ROBUSTA sz=1000)
+      const imageUrl = `https://drive.google.com/thumbnail?id=${file.getId()}&sz=w1000`;
       return ContentService.createTextOutput(JSON.stringify({ success: true, url: imageUrl })).setMimeType(ContentService.MimeType.JSON);
     }
     
@@ -44,19 +45,26 @@ function doPost(e) {
     else if (action === 'updateOrderStatus') result = updateOrderStatus(data);
     else if (action === 'saveConfig') result = saveConfig(data);
     
+    return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
   } catch(error) {
-    result = { success: false, error: error.toString() };
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: error.toString() })).setMimeType(ContentService.MimeType.JSON);
   }
-  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function getProducts() {
   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEETS.PRODUCTS);
   const data = sheet.getDataRange().getValues();
   const products = data.slice(1).map(r => ({
-    id: String(r[0]), nome: r[1], descricao: r[2], categoria: r[3], preco: r[4], imagem: r[5], ativo: r[6], destaque: r[7]
+    id: String(r[0]), 
+    nome: String(r[1]), 
+    descricao: String(r[2]), 
+    categoria: String(r[3]), 
+    preco: Number(r[4] || 0), 
+    imagem: String(r[5] || ''), 
+    ativo: String(r[6]).toLowerCase() === 'true', 
+    destaque: String(r[7]).toLowerCase() === 'true'
   }));
-  return { success: true, products: products };
+  return { success: true, products };
 }
 
 function createProduct(data) {
@@ -68,7 +76,7 @@ function createProduct(data) {
 function updateProduct(data) {
   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEETS.PRODUCTS);
   const rows = sheet.getDataRange().getValues();
-  for (let i = 1; i < rows.length; i++) {
+  for (var i = 1; i < rows.length; i++) {
     if (String(rows[i][0]) === String(data.id)) {
       sheet.getRange(i + 1, 1, 1, 8).setValues([[String(data.id), data.nome, data.descricao, data.categoria, data.preco, data.imagem, data.ativo, data.destaque]]);
       break;
@@ -80,11 +88,8 @@ function updateProduct(data) {
 function deleteProduct(data) {
   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEETS.PRODUCTS);
   const rows = sheet.getDataRange().getValues();
-  for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][0]) === String(data.id)) {
-      sheet.deleteRow(i + 1);
-      break;
-    }
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(data.id)) { sheet.deleteRow(i + 1); break; }
   }
   return { success: true };
 }
@@ -93,20 +98,33 @@ function getOrders() {
   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEETS.ORDERS);
   const data = sheet.getDataRange().getValues();
   const orders = data.slice(1).map(r => ({
-    id: String(r[0]), data: r[1], cliente: { nome: r[2], telefone: r[3], endereco: r[4], complemento: r[5] },
-    itens: JSON.parse(r[6] || '[]'), total: r[7], pagamento: r[8], troco: r[9], observacoes: r[10], status: r[11]
+    id: String(r[0]), 
+    data: r[1], 
+    cliente: { 
+      nome: r[2], 
+      telefone: r[3], 
+      endereco: r[4], 
+      complemento: r[5] 
+    },
+    itens: JSON.parse(r[6] || '[]'), 
+    total: r[7], 
+    pagamento: r[8], 
+    troco: r[9], 
+    observacoes: r[10], 
+    status: r[11]
   }));
-  return { success: true, orders: orders };
+  return { success: true, orders };
 }
 
 function createOrder(data) {
   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEETS.ORDERS);
-  const orderId = "ORD" + new Date().getTime().toString().slice(-6);
+  const id = "ORD" + Math.floor(Math.random() * 899999 + 100000);
   sheet.appendRow([
-    orderId, data.data, data.cliente.nome, data.cliente.telefone, data.cliente.endereco, 
-    data.cliente.complemento, JSON.stringify(data.itens), data.total, data.pagamento, data.troco, data.observacoes, 'pendente'
+    id, data.data, data.cliente.nome, data.cliente.telefone, data.cliente.endereco, 
+    data.cliente.complemento || '', JSON.stringify(data.itens), data.total, 
+    data.pagamento || '', data.troco || '', data.observacoes || '', 'pendente'
   ]);
-  return { success: true, orderId: orderId };
+  return { success: true, orderId: id };
 }
 
 function updateOrderStatus(data) {
@@ -126,20 +144,16 @@ function getConfig() {
   const data = sheet.getDataRange().getValues();
   const config = {};
   data.forEach(r => { if(r[0]) config[r[0]] = r[1]; });
-  return { success: true, config: config };
+  return { success: true, config };
 }
 
 function saveConfig(data) {
   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEETS.CONFIG);
-  for (const key in data) {
+  const rows = sheet.getDataRange().getValues();
+  for (let key in data) {
     let found = false;
-    const rows = sheet.getDataRange().getValues();
-    for (let i = 0; i < rows.length; i++) {
-      if (rows[i][0] === key) {
-        sheet.getRange(i + 1, 2).setValue(data[key]);
-        found = true;
-        break;
-      }
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i][0] === key) { sheet.getRange(i + 1, 2).setValue(data[key]); found = true; break; }
     }
     if (!found) sheet.appendRow([key, data[key]]);
   }
@@ -152,5 +166,5 @@ function setup() {
   if (!ss.getSheetByName(SHEETS.ORDERS)) ss.insertSheet(SHEETS.ORDERS).appendRow(['ID', 'Data', 'Cliente', 'Telefone', 'Endereço', 'Complemento', 'Itens', 'Total', 'Pagamento', 'Troco', 'Observações', 'Status']);
   if (!ss.getSheetByName(SHEETS.CONFIG)) ss.insertSheet(SHEETS.CONFIG).appendRow(['Chave', 'Valor']);
   DriveApp.getFolderById(GOOGLE_DRIVE_FOLDER_ID);
-  Logger.log('Setup concluído!');
+  Logger.log('Setup Finalizado!');
 }

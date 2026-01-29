@@ -18,6 +18,10 @@ async function init() {
     hideLoader();
 }
 
+function showLoader() { loader.style.display = 'flex'; }
+function hideLoader() { loader.style.display = 'none'; }
+
+
 async function loadAll() {
     try {
         await Promise.all([loadConfig(), loadProducts(), loadOrders()]);
@@ -83,26 +87,49 @@ function renderProductsTable() {
 function renderOrders(filter = 'all') {
     const filtered = filter === 'all' ? orders : orders.filter(o => o.status === filter);
     const container = document.getElementById('ordersList');
+    if (filtered.length === 0) { container.innerHTML = '<div class="card"><div class="card-body">Nenhum pedido encontrado.</div></div>'; return; }
+
     container.innerHTML = filtered.map(o => `
-    <div class="card" style="margin-bottom:20px; padding:20px;">
-        <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-            <h3>Pedido #${o.id}</h3>
+    <div class="card" style="margin-bottom:20px; padding:20px; border-left: 5px solid var(--status-${getStatusClass(o.status)});">
+        <div style="display:flex; justify-content:space-between; margin-bottom:15px; align-items:flex-start;">
+            <div>
+                <h3 style="margin-bottom:5px;">Pedido #${o.id}</h3>
+                <p style="font-size:0.8rem; color:var(--text-muted);">${new Date(o.data).toLocaleString('pt-BR')}</p>
+            </div>
             <span class="badge badge-${getStatusClass(o.status)}">${o.status}</span>
         </div>
-        <p><strong>Cliente:</strong> ${o.cliente.nome} - ${o.cliente.telefone}</p>
-        <p><strong>Endereço:</strong> ${o.cliente.endereco}</p>
-        <div style="margin:15px 0;">
-            ${o.itens.map(i => `<div>${i.qtd}x ${i.nome}</div>`).join('')}
+        
+        <div class="grid-2" style="margin-bottom:15px;">
+            <div>
+                <p><strong>👤 Cliente:</strong> ${o.cliente.nome}</p>
+                <p><strong>📞 Tel:</strong> ${o.cliente.telefone}</p>
+                <p><strong>📍 Endereço:</strong> ${o.cliente.endereco}</p>
+                ${o.cliente.complemento ? `<p><strong>🏢 Complemento:</strong> ${o.cliente.complemento}</p>` : ''}
+            </div>
+            <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px;">
+                <p><strong>💳 Pagamento:</strong> ${String(o.pagamento).toUpperCase()}</p>
+                ${o.troco ? `<p><strong>💵 Troco para:</strong> R$ ${o.troco}</p>` : ''}
+                ${o.observacoes ? `<p style="color:var(--accent);"><strong>📝 Obs:</strong> ${o.observacoes}</p>` : ''}
+            </div>
         </div>
-        <div style="font-size:1.2rem; font-weight:700; color:var(--accent); margin-bottom:15px;">Total: R$ ${formatPrice(o.total)}</div>
-        <div class="order-actions" style="display:flex; gap:10px;">
-            ${o.status === 'pendente' ? `<button class="btn btn-primary" onclick="updateOrderStatus('${o.id}', 'preparando')">Preparar</button>` : ''}
-            ${o.status === 'preparando' ? `<button class="btn btn-accent" onclick="updateOrderStatus('${o.id}', 'saiu')">Saiu p/ Entrega</button>` : ''}
-            ${o.status === 'saiu' ? `<button class="btn btn-success" onclick="updateOrderStatus('${o.id}', 'entregue')">Entregue</button>` : ''}
-            <a href="https://wa.me/55${String(o.cliente.telefone).replace(/\D/g, '')}" target="_blank" class="btn btn-secondary">WhatsApp</a>
+
+        <div style="margin:15px 0; padding:15px; background:var(--bg-input); border-radius:10px;">
+            <p style="margin-bottom:10px; font-weight:700; border-bottom:1px solid var(--border-color); padding-bottom:5px;">Itens do Pedido:</p>
+            ${o.itens.map(i => `<div style="display:flex; justify-content:space-between;"><span>${i.qtd}x ${i.nome}</span><span>R$ ${formatPrice(i.preco * i.qtd)}</span></div>`).join('')}
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-size:1.4rem; font-weight:800; color:var(--accent);">Total: R$ ${formatPrice(o.total)}</div>
+            <div class="order-actions" style="display:flex; gap:10px;">
+                ${o.status === 'pendente' ? `<button class="btn btn-primary" onclick="updateOrderStatus('${o.id}', 'preparando')">✅ Aceitar</button>` : ''}
+                ${o.status === 'preparando' ? `<button class="btn btn-accent" onclick="updateOrderStatus('${o.id}', 'saiu')">🛵 Enviar</button>` : ''}
+                ${o.status === 'saiu' ? `<button class="btn btn-success" onclick="updateOrderStatus('${o.id}', 'entregue')">🏁 Finalizar</button>` : ''}
+                <a href="https://wa.me/55${String(o.cliente.telefone).replace(/\D/g, '')}" target="_blank" class="btn btn-secondary">📱 WhatsApp</a>
+            </div>
         </div>
     </div>`).join('');
 }
+
 
 async function updateOrderStatus(id, status) {
     showToast('Atualizando status...', 'info');
@@ -174,8 +201,29 @@ function showToast(m, type = 'info') {
 }
 
 // Outras funções de modal mantidas...
-function openProductModal() { document.getElementById('productModal').classList.add('active'); }
-function closeProductModal() { document.getElementById('productModal').classList.remove('active'); }
+function openProductModal(isEdit = false) {
+    if (!isEdit) {
+        document.getElementById('productId').value = '';
+        document.getElementById('productName').value = '';
+        document.getElementById('productDesc').value = '';
+        document.getElementById('productCategory').value = '';
+        document.getElementById('productPrice').value = '';
+        document.getElementById('productImage').value = '';
+        document.getElementById('productActive').checked = true;
+        document.getElementById('productFeatured').checked = false;
+        document.getElementById('imagePreview').style.display = 'none';
+        document.getElementById('imageUploadContent').style.display = 'block';
+        document.getElementById('productModalTitle').textContent = 'Novo Produto';
+    } else {
+        document.getElementById('productModalTitle').textContent = 'Editar Produto';
+    }
+    document.getElementById('productModal').classList.add('active');
+}
+
+function closeProductModal() {
+    document.getElementById('productModal').classList.remove('active');
+}
+
 function editProduct(id) {
     const p = products.find(x => String(x.id) === String(id));
     if (p) {
@@ -185,6 +233,136 @@ function editProduct(id) {
         document.getElementById('productCategory').value = p.categoria;
         document.getElementById('productPrice').value = p.preco;
         document.getElementById('productImage').value = p.imagem;
-        openProductModal();
+        document.getElementById('productActive').checked = p.ativo;
+        document.getElementById('productFeatured').checked = p.destaque;
+
+        const preview = document.getElementById('imagePreview');
+        const uploadContent = document.getElementById('imageUploadContent');
+        if (p.imagem) {
+            preview.src = p.imagem;
+            preview.style.display = 'block';
+            uploadContent.style.display = 'none';
+        } else {
+            preview.style.display = 'none';
+            uploadContent.style.display = 'block';
+        }
+
+        openProductModal(true);
     }
 }
+
+async function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Preview local
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const preview = document.getElementById('imagePreview');
+        const uploadContent = document.getElementById('imageUploadContent');
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+        uploadContent.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+
+    showToast('Enviando imagem...', 'info');
+
+    // Upload para o Drive via Backend
+    try {
+        const base64 = await toBase64(file);
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'uploadImage',
+                data: {
+                    image: base64,
+                    fileName: `produto_${Date.now()}.jpg`
+                }
+            })
+        });
+        const result = await res.json();
+        if (result.success) {
+            document.getElementById('productImage').value = result.url;
+            showToast('Imagem carregada!', 'success');
+        } else {
+            showToast('Erro no upload', 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('Erro ao enviar imagem', 'error');
+    }
+}
+
+function toBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+}
+
+async function saveProduct() {
+    const id = document.getElementById('productId').value;
+    const data = {
+        id: id || Date.now().toString(),
+        nome: document.getElementById('productName').value,
+        descricao: document.getElementById('productDesc').value,
+        categoria: document.getElementById('productCategory').value,
+        preco: parseFloat(document.getElementById('productPrice').value),
+        imagem: document.getElementById('productImage').value,
+        ativo: document.getElementById('productActive').checked,
+        destaque: document.getElementById('productFeatured').checked
+    };
+
+    if (!data.nome || isNaN(data.preco)) {
+        showToast('Nome e preço são obrigatórios!', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btnSaveProduct');
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
+    try {
+        const action = id ? 'updateProduct' : 'createProduct';
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action, data })
+        });
+        const result = await res.json();
+        if (result.success) {
+            showToast('Produto salvo com sucesso!', 'success');
+            closeProductModal();
+            await loadProducts();
+            updateDashboard();
+        }
+    } catch (e) {
+        showToast('Erro ao salvar produto', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Salvar Produto';
+    }
+}
+
+async function deleteProduct(id) {
+    if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+
+    showToast('Excluindo...', 'info');
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'deleteProduct', data: { id } })
+        });
+        const result = await res.json();
+        if (result.success) {
+            showToast('Produto excluído!', 'success');
+            await loadProducts();
+            updateDashboard();
+        }
+    } catch (e) {
+        showToast('Erro ao excluir', 'error');
+    }
+}
+
