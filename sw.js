@@ -1,15 +1,15 @@
-const CACHE_NAME = 'tokyo-sushi-v1';
+const CACHE_NAME = 'tokyo-sushi-v2'; // Incrementado para forçar refresh
 const ASSETS = [
     '/',
     '/index.html',
-    '/css/styles.css',
-    '/js/store.js',
+    '/css/styles.css?v=1.3',
+    '/js/store.js?v=1.3',
     '/assets/logo.png',
     '/manifest.json'
 ];
 
-// Instalação do Service Worker
 self.addEventListener('install', event => {
+    self.skipWaiting(); // Força a ativação imediata
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => {
             return cache.addAll(ASSETS);
@@ -17,7 +17,18 @@ self.addEventListener('install', event => {
     );
 });
 
-// Resposta com Cache
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys().then(keys => {
+            return Promise.all(
+                keys.filter(key => key !== CACHE_NAME)
+                    .map(key => caches.delete(key))
+            );
+        })
+    );
+    return self.clients.claim();
+});
+
 self.addEventListener('fetch', event => {
     event.respondWith(
         caches.match(event.request).then(response => {
@@ -25,3 +36,4 @@ self.addEventListener('fetch', event => {
         })
     );
 });
+

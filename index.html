@@ -9,13 +9,13 @@
   <title>Tokyo Sushi - Delivery</title>
 
   <!-- PWA Manifest -->
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  <link rel="manifest" href="manifest.json?v=1.4">
+  <link rel="apple-touch-icon" href="assets/icon-192.png?v=1.4">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=1.2">
+  <link rel="stylesheet" href="css/styles.css?v=1.4">
   <link rel="icon" type="image/png" href="assets/logo.png">
 </head>
 
@@ -35,6 +35,9 @@
             <h1>TO<span>K</span>YO</h1>
             <p>SUSHI</p>
           </div>
+          <a href="javascript:void(0)" id="install-link-header" onclick="installPWA()"
+            style="display:none; color:var(--primary); font-weight:700; font-size:0.75rem; text-decoration:none; border:1px solid var(--primary); padding:4px 10px; border-radius:30px; margin-left:10px; white-space:nowrap;">📲
+            INSTALAR APP</a>
         </div>
         <div class="categories-filter" id="categoriesFilter">
           <button class="category-btn active" data-category="all">Todos</button>
@@ -169,34 +172,49 @@
     </div>
   </div>
 
-  <script src="js/store.js?v=1.3"></script>
+  <script src="js/store.js?v=1.4"></script>
   <script>
     let deferredPrompt;
     const pwaPrompt = document.getElementById('pwa-custom-prompt');
 
-    // Registrar Service Worker
+    // Registrar Service Worker com versão para forçar atualização no mobile
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('sw.js?v=1.4').then(reg => {
+          reg.onupdatefound = () => {
+            const installingWorker = reg.installing;
+            installingWorker.onstatechange = () => {
+              if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // Forçar reload quando houver atualização crítica
+                location.reload();
+              }
+            };
+          };
+        }).catch(err => console.log('SW error:', err));
       });
     }
 
-    // Bloquear o prompt nativo e mostrar o personalizado (sem ícone)
+    // Bloquear o prompt nativo e exibir a versão em texto puro
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
-      // Mostrar o nosso prompt apenas se o usuário ainda não instalou
-      pwaPrompt.style.display = 'flex';
+
+      // Mostrar o link no header e o prompt de rodapé
+      const headerLink = document.getElementById('install-link-header');
+      if (headerLink) headerLink.style.display = 'block';
+
+      if (!localStorage.getItem('pwa_dismissed')) {
+        pwaPrompt.style.display = 'flex';
+      }
     });
 
     function installPWA() {
       if (deferredPrompt) {
         deferredPrompt.prompt();
         deferredPrompt.userChoice.then((choiceResult) => {
-          if (choiceResult.outcome === 'accepted') {
-            console.log('Usuário aceitou a instalação');
-          }
           pwaPrompt.style.display = 'none';
+          const headerLink = document.getElementById('install-link-header');
+          if (headerLink) headerLink.style.display = 'none';
           deferredPrompt = null;
         });
       }
@@ -204,7 +222,6 @@
 
     function dismissInstallPWA() {
       pwaPrompt.style.display = 'none';
-      // Opcional: Salvar no localStorage para não incomodar de novo hoje
       localStorage.setItem('pwa_dismissed', 'true');
     }
   </script>
