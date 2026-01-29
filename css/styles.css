@@ -758,8 +758,76 @@ body::before {
 /* REMOVIDO PWA BANNER ANTIGO */
 
 
-/* MOBILE */
+/* MOBILE OPTIMIZATION 100% */
 @media (max-width: 768px) {
+    :root {
+        --border-radius-lg: 15px;
+    }
+
+    body {
+        /* Suporte para notch e barras de sistema */
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .container {
+        padding: 0 15px;
+    }
+
+    .header {
+        padding: 15px 0;
+    }
+
+    .logo img {
+        width: 35px;
+        height: 35px;
+    }
+
+    .logo-text h1 {
+        font-size: 1.4rem;
+    }
+
+    .hero {
+        padding: 60px 0 40px;
+    }
+
+    .hero h2 {
+        font-size: 2.2rem;
+    }
+
+    .hero p {
+        font-size: 1rem;
+    }
+
+    .products-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        padding: 20px 0;
+    }
+
+    .product-image-container {
+        height: 180px;
+    }
+
+    /* Cart Sidebar Mobile */
+    .cart-sidebar {
+        width: 100%;
+        right: -100%;
+        padding: 20px;
+    }
+
+    .cart-btn {
+        bottom: 25px;
+        right: 20px;
+        width: 60px;
+        height: 60px;
+    }
+
+    .cart-total {
+        font-size: 1.2rem;
+    }
+
+    /* Admin Mobile */
     .admin-layout {
         flex-direction: column;
     }
@@ -769,13 +837,43 @@ body::before {
         height: auto;
         border-right: none;
         border-bottom: 1px solid var(--border-color);
+        padding: 15px;
     }
 
     .admin-content {
+        padding: 20px 15px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+
+    .stat-card {
         padding: 20px;
     }
 
-    .products-grid {
+    .stat-value {
+        font-size: 1.8rem;
+    }
+
+    /* Modals Mobile */
+    .modal {
+        padding: 0;
+        border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+        position: fixed;
+        bottom: 0;
+        max-height: 95vh;
+    }
+
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: 15px;
+    }
+
+    .grid-2 {
         grid-template-columns: 1fr;
+        gap: 0;
     }
 }
