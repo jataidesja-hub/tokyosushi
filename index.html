@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=1.2">
   <link rel="icon" type="image/png" href="assets/logo.png">
 </head>
 
@@ -156,7 +156,7 @@
     </div>
   </div>
 
-  <script src="js/store.js"></script>
+  <script src="js/store.js?v=1.2"></script>
   <script>
     // Registrar Service Worker
     if ('serviceWorker' in navigator) {
@@ -164,7 +164,13 @@
         navigator.serviceWorker.register('sw.js').catch(err => console.log('SW error:', err));
       });
     }
+
+    // Bloquear o prompt de instalação automático do navegador (que aparece como um ícone gigante)
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+    });
   </script>
+
 
 </body>
 
