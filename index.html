@@ -3,7 +3,8 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="Tokyo Sushi - O melhor sushi da cidade. Peça agora!">
   <meta name="theme-color" content="#c41e3a">
   <title>Tokyo Sushi - Delivery</title>
@@ -28,7 +29,7 @@
 
   <header class="header">
     <div class="container">
-      <div class="header-content">
+      <div class="header-main">
         <div class="logo">
           <img src="assets/logo.png" alt="Tokyo Sushi">
           <div class="logo-text">
@@ -37,8 +38,10 @@
           </div>
           <a href="javascript:void(0)" id="install-link-header" onclick="installPWA()"
             style="display:none; color:var(--primary); font-weight:700; font-size:0.75rem; text-decoration:none; border:1px solid var(--primary); padding:4px 10px; border-radius:30px; margin-left:10px; white-space:nowrap;">📲
-            INSTALAR APP</a>
+            APP</a>
         </div>
+      </div>
+      <div class="categories-container">
         <div class="categories-filter" id="categoriesFilter">
           <button class="category-btn active" data-category="all">Todos</button>
         </div>
@@ -172,7 +175,7 @@
     </div>
   </div>
 
-  <script src="js/store.js?v=1.4"></script>
+  <script src="js/store.js?v=1.5"></script>
   <script>
     let deferredPrompt;
     const pwaPrompt = document.getElementById('pwa-custom-prompt');
@@ -180,7 +183,7 @@
     // Registrar Service Worker com versão para forçar atualização no mobile
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js?v=1.4').then(reg => {
+        navigator.serviceWorker.register('sw.js?v=1.5').then(reg => {
           reg.onupdatefound = () => {
             const installingWorker = reg.installing;
             installingWorker.onstatechange = () => {

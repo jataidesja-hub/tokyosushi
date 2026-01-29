@@ -71,10 +71,11 @@ body::before {
     padding: 20px 0;
 }
 
-.header-content {
+.header-main {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    margin-bottom: 15px;
 }
 
 .logo {
@@ -104,12 +105,17 @@ body::before {
 }
 
 /* CATEGORIES */
+.categories-container {
+    padding-top: 5px;
+}
+
 .categories-filter {
     display: flex;
     gap: 10px;
     padding: 10px 0;
     overflow-x: auto;
     scrollbar-width: none;
+    justify-content: flex-start;
 }
 
 .category-btn {
