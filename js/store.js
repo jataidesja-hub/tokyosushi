@@ -220,10 +220,8 @@ async function confirmOrder() {
     console.log('Enviando pedido ao servidor...');
     const res = await fetch(API_URL, {
       method: 'POST',
-      mode: 'cors',
-      cache: 'no-cache',
       redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'createOrder', data: orderData })
     });
 
@@ -239,7 +237,9 @@ async function confirmOrder() {
     }
   } catch (e) {
     console.error('Erro de Fetch:', e);
-    showToast('Erro de conexão: Verifique seu sinal de internet.', 'error');
+    // Verificar se o erro foi apenas no retorno (mas o pedido pode ter ido)
+    // Infelizmente sem ID não podemos confirmar, então mostramos erro genérico mais amigável
+    showToast('Erro de conexão. Verifique se o pedido apareceu no seu histórico ou tente novamente.', 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Confirmar';
@@ -249,21 +249,32 @@ async function confirmOrder() {
 function showSuccess(oid, odata) {
   document.getElementById('orderNumber').textContent = `#${oid}`;
 
-  const whatsappContainer = document.getElementById('whatsappBtnContainer');
-  if (config.whatsapp) {
-    const msg = encodeURIComponent(`🍱 *NOVO PEDIDO: #${oid}*\n\n` +
-      `👤 *Cliente:* ${odata.cliente.nome}\n` +
-      `📞 *Tel:* ${odata.cliente.telefone}\n` +
-      `📍 *Endereço:* ${odata.cliente.endereco}\n` +
-      (odata.cliente.complemento ? `🏢 *Compl:* ${odata.cliente.complemento}\n` : '') +
-      `💳 *Pagamento:* ${odata.pagamento.toUpperCase()}\n` +
-      (odata.troco ? `💵 *Troco para:* R$ ${odata.troco}\n` : '') +
-      `📝 *Obs:* ${odata.observacoes || 'Nenhuma'}\n\n` +
-      `🛒 *Itens:*\n${odata.itens.map(i => `- ${i.qty}x ${i.nome}`).join('\n')}\n\n` +
-      `💰 *Total: R$ ${formatPrice(odata.total)}*`);
+  // Mensagem padronizada
+  const msgText = `🍱 *PEDIDO #${oid} CONFIRMADO*\n\n` +
+    `👤 *Cliente:* ${odata.cliente.nome}\n` +
+    `📅 *Data:* ${new Date().toLocaleDateString()}\n` +
+    `💳 *Pagamento:* ${odata.pagamento.toUpperCase()}\n` +
+    `💰 *Total:* R$ ${formatPrice(odata.total)}\n\n` +
+    `*Status:* ⏳ Aguardando Aprovação\n\n` +
+    `Acompanhe seu pedido aqui: https://tokyosushi.vercel.app/status.html?id=${oid}`;
 
-    whatsappContainer.innerHTML = `<a href="https://wa.me/55${config.whatsapp.replace(/\D/g, '')}?text=${msg}" target="_blank" class="btn btn-success" style="width:100%; gap: 10px;">Enviar Pedido para WhatsApp ✅</a>`;
+  const msgEncoded = encodeURIComponent(msgText);
+
+  // Botão para o Restaurante (Store)
+  const whatsappContainer = document.getElementById('whatsappBtnContainer');
+  let htmlContent = '';
+  
+  if (config.whatsapp) {
+    htmlContent += `<a href="https://wa.me/55${config.whatsapp.replace(/\D/g, '')}?text=${msgEncoded}" target="_blank" class="btn btn-success" style="width:100%; gap: 10px; margin-bottom: 10px;">Enviar para Restaurante 🏪</a>`;
   }
+
+  // Botão para o Cliente (Salvar no próprio WhatsApp)
+  const clientPhone = odata.cliente.telefone.replace(/\D/g, '');
+  if (clientPhone.length >= 10) {
+      htmlContent += `<a href="https://wa.me/55${clientPhone}?text=${msgEncoded}" target="_blank" class="btn btn-primary" style="width:100%; gap: 10px; background: #25D366; border: none; margin-bottom: 10px;">📩 Receber no meu WhatsApp</a>`;
+  }
+
+  whatsappContainer.innerHTML = htmlContent;
 
   const trackingContainer = document.getElementById('trackingBtnContainer');
   trackingContainer.innerHTML = `<a href="status.html?id=${oid}" class="btn btn-accent" style="width:100%;">🚀 Acompanhar Status em Tempo Real</a>`;
