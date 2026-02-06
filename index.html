@@ -174,23 +174,10 @@
     </div>
   </div>
 
-  <!-- Prompt de Instalação Minimalista (Sem Ícone) -->
-  <div id="pwa-custom-prompt"
-    style="display:none; position:fixed; bottom:20px; left:20px; right:20px; background:#1a1a2e; border:1px solid var(--primary); padding:15px; border-radius:12px; z-index:10000; box-shadow:var(--shadow-lg); align-items:center; justify-content:space-between; gap:10px;">
-    <span style="color:white; font-weight:600; font-size:0.9rem;">Deseja instalar o app Tokyo Sushi?</span>
-    <div style="display:flex; gap:10px;">
-      <button onclick="dismissInstallPWA()"
-        style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-weight:700;">AGORA
-        NÃO</button>
-      <button onclick="installPWA()"
-        style="background:var(--primary); border:none; color:white; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.8rem;">INSTALAR</button>
-    </div>
-  </div>
 
   <script src="js/store.js?v=2.1"></script>
   <script>
     let deferredPrompt;
-    const pwaPrompt = document.getElementById('pwa-custom-prompt');
 
     // Registrar Service Worker
     if ('serviceWorker' in navigator) {
@@ -199,32 +186,23 @@
       });
     }
 
-    // Bloquear o prompt nativo e exibir a versão em texto puro
+    // Bloquear o prompt nativo e exibir apenas o botão no header
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
       const headerLink = document.getElementById('install-link-header');
       if (headerLink) headerLink.style.display = 'block';
-      if (!localStorage.getItem('pwa_dismissed')) {
-        pwaPrompt.style.display = 'flex';
-      }
     });
 
     function installPWA() {
       if (deferredPrompt) {
         deferredPrompt.prompt();
         deferredPrompt.userChoice.then(() => {
-          pwaPrompt.style.display = 'none';
           const headerLink = document.getElementById('install-link-header');
           if (headerLink) headerLink.style.display = 'none';
           deferredPrompt = null;
         });
       }
-    }
-
-    function dismissInstallPWA() {
-      pwaPrompt.style.display = 'none';
-      localStorage.setItem('pwa_dismissed', 'true');
     }
   </script>
 
